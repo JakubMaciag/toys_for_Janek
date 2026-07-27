@@ -22,3 +22,11 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Firebase service-account keys — NEVER commit these (used only locally by scripts/set-admin-claim.js)
+service-account*.json
+*firebase-adminsdk*.json
+
+# Node (scripts/set-admin-claim.js dependencies)
+node_modules/
+

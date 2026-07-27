@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel administratora — lista zabawek</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>🔧 Panel administratora</h1>
+      <div>
+        <a href="index.html" style="color: white; font-size: 13px; margin-right: 12px">Zobacz listę gościa</a>
+        <button id="logout-btn" class="secondary" hidden type="button">Wyloguj</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="login-view" class="gate">
+        <p>Zaloguj się jako administrator.</p>
+        <form id="login-form">
+          <input type="email" id="login-email" placeholder="E-mail" required autocomplete="username" />
+          <input
+            type="password"
+            id="login-password"
+            placeholder="Hasło"
+            required
+            autocomplete="current-password"
+          />
+          <button type="submit">Zaloguj</button>
+        </form>
+        <p id="login-error" class="error" role="alert"></p>
+      </section>
+
+      <section id="admin-view" hidden>
+        <div class="admin-toolbar">
+          <button id="toggle-add-btn" type="button">+ Dodaj zabawkę</button>
+          <p id="load-status" class="status"></p>
+        </div>
+
+        <form id="add-form" class="admin-form" hidden>
+          <label>Nazwa<input type="text" id="add-name" required maxlength="200" /></label>
+          <label>Cena<input type="number" id="add-price" min="0" step="0.01" /></label>
+          <label>Waluta<input type="text" id="add-currency" maxlength="10" value="PLN" /></label>
+          <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
+          <label>Link do sklepu<input type="url" id="add-link" required maxlength="2000" /></label>
+          <div class="form-actions">
+            <button type="submit">Zapisz nową zabawkę</button>
+            <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>
+          </div>
+        </form>
+        <p id="add-error" class="error" role="alert"></p>
+
+        <div id="tiles" class="tile-grid"></div>
+      </section>
+    </main>
+
+    <script type="module" src="admin.js"></script>
+  </body>
+</html>

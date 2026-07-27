@@ -1,0 +1,8 @@
+potrzebuję w danym directory utworzyć kod do aplikacji która składa się z: 
+1. wtyczki/pluginu/widgetu do przeglądarki chrome za pomocą którego będę mógł wskazywać na dana zabawkę że ma zostać dodana do listy zabawek 
+na zasadzie że jestem na danej stronie z daną zabawką i klikam w widgecie przycisk dodaj do listy i link jest przekazywany do drugiej aplikacji
+2. na darmowym hostingu np github. potrzebuję utworzyć stronę internetową któa będzie w kafelkach przechowywać zapisane za pomocą pierwszego widgetu/pluginu do przeglądarki 
+wskazane zabawki, wyświetlac zdjecie tej zabawki, nazwe, link i cene ze strony ktorą wskazałem w pluginie, 
+ - ma to być bardzo bezpieczne rozwiązanie 
+ - lista na stronie powinna być edytowalna z poziomu panelu administratora a dla użytkownika może być na zasadzie zaznaczone że zabawka będzie przez użytkownika kupiona, oraz potrzebuję panelu goscia że wyświetla mu sie lista nadal niekupionych zabawek 
+ 

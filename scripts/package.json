@@ -1,0 +1,8 @@
+{
+  "name": "toys-for-janek-admin-scripts",
+  "private": true,
+  "description": "One-time local scripts (not deployed anywhere) for setting up the admin account.",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

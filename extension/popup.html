@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dodaj do listy zabawek</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Lista zabawek dla Janka</h1>
+      <button id="logout-btn" class="link-btn" hidden type="button">Wyloguj</button>
+    </header>
+
+    <section id="login-view">
+      <p class="hint">Zaloguj się jako administrator, żeby dodawać zabawki.</p>
+      <form id="login-form">
+        <label>
+          E-mail
+          <input type="email" id="login-email" required autocomplete="username" />
+        </label>
+        <label>
+          Hasło
+          <input type="password" id="login-password" required autocomplete="current-password" />
+        </label>
+        <button type="submit">Zaloguj</button>
+      </form>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="add-view" hidden>
+      <button id="scan-btn" type="button">Zeskanuj tę stronę</button>
+      <p class="hint">Wtyczka spróbuje odgadnąć nazwę, zdjęcie i cenę — popraw je przed zapisaniem.</p>
+
+      <form id="toy-form" hidden>
+        <label>
+          Nazwa
+          <input type="text" id="toy-name" required maxlength="200" />
+        </label>
+        <label>
+          Cena
+          <input type="number" id="toy-price" min="0" step="0.01" />
+        </label>
+        <label>
+          Waluta
+          <input type="text" id="toy-currency" maxlength="10" value="PLN" />
+        </label>
+        <label>
+          Zdjęcie (URL)
+          <input type="url" id="toy-image" maxlength="2000" />
+        </label>
+        <img id="toy-image-preview" alt="" hidden />
+        <label>
+          Link do sklepu
+          <input type="url" id="toy-link" required maxlength="2000" readonly />
+        </label>
+        <button type="submit">Dodaj do listy</button>
+      </form>
+      <p id="save-status" role="status"></p>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

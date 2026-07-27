@@ -1,0 +1,199 @@
+import { FIREBASE_CONFIG, GUEST_PASSWORD_SHA256 } from './config.js';
+import { signInAnonymously, ensureFreshSession, listToys, updateToyFields } from './firebase-rest.js';
+
+const GATE_OK_KEY = 'toysForJanek.gateOk';
+const SESSION_KEY = 'toysForJanek.guestSession';
+
+const gate = document.getElementById('gate');
+const gateForm = document.getElementById('gate-form');
+const gateError = document.getElementById('gate-error');
+const content = document.getElementById('content');
+const loadStatus = document.getElementById('load-status');
+const tilesEl = document.getElementById('tiles');
+const emptyState = document.getElementById('empty-state');
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function getStoredSession() {
+  const raw = localStorage.getItem(SESSION_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+function storeSession(session) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+async function getGuestSession() {
+  let session = getStoredSession();
+  if (session) {
+    const fresh = await ensureFreshSession(FIREBASE_CONFIG.apiKey, session);
+    if (fresh !== session) storeSession(fresh);
+    return fresh;
+  }
+  session = await signInAnonymously(FIREBASE_CONFIG.apiKey);
+  storeSession(session);
+  return session;
+}
+
+function formatPrice(toy) {
+  if (toy.price === null || toy.price === undefined) return null;
+  return `${toy.price.toFixed(2)} ${toy.currency || ''}`.trim();
+}
+
+function buildTile(toy, onReserved) {
+  const tile = document.createElement('article');
+  tile.className = 'tile';
+
+  if (toy.imageUrl) {
+    const img = document.createElement('img');
+    img.src = toy.imageUrl;
+    img.alt = '';
+    tile.appendChild(img);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'tile-body';
+
+  const name = document.createElement('div');
+  name.className = 'tile-name';
+  name.textContent = toy.name || '(bez nazwy)';
+  body.appendChild(name);
+
+  const price = formatPrice(toy);
+  if (price) {
+    const priceEl = document.createElement('div');
+    priceEl.className = 'tile-price';
+    priceEl.textContent = price;
+    body.appendChild(priceEl);
+  }
+
+  if (toy.link && /^https?:\/\//i.test(toy.link)) {
+    const link = document.createElement('a');
+    link.className = 'tile-link';
+    link.href = toy.link;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Zobacz w sklepie ↗';
+    body.appendChild(link);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'tile-actions';
+
+  const reserveBtn = document.createElement('button');
+  reserveBtn.type = 'button';
+  reserveBtn.textContent = 'Kupię to!';
+  actions.appendChild(reserveBtn);
+
+  const nameForm = document.createElement('div');
+  nameForm.hidden = true;
+  nameForm.style.display = 'flex';
+  nameForm.style.gap = '6px';
+  nameForm.style.marginTop = '6px';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Twoje imię (opcjonalnie)';
+  nameInput.maxLength = 60;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.type = 'button';
+  confirmBtn.textContent = 'Potwierdź';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'secondary';
+  cancelBtn.textContent = 'Anuluj';
+
+  nameForm.append(nameInput, confirmBtn, cancelBtn);
+
+  const tileStatus = document.createElement('p');
+  tileStatus.className = 'status';
+
+  reserveBtn.addEventListener('click', () => {
+    reserveBtn.hidden = true;
+    nameForm.hidden = false;
+    nameInput.focus();
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    nameForm.hidden = true;
+    reserveBtn.hidden = false;
+  });
+
+  confirmBtn.addEventListener('click', async () => {
+    confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
+    tileStatus.textContent = 'Zapisywanie…';
+    try {
+      const session = await getGuestSession();
+      await updateToyFields(FIREBASE_CONFIG.projectId, session.idToken, toy.id, {
+        reserved: true,
+        reservedByName: nameInput.value.trim() || null,
+        reservedAt: new Date(),
+      });
+      onReserved();
+    } catch (err) {
+      tileStatus.textContent = 'Ups, ktoś już chyba to zarezerwował. Odświeżam listę…';
+      setTimeout(onReserved, 1200);
+    }
+  });
+
+  actions.appendChild(nameForm);
+  body.appendChild(actions);
+  body.appendChild(tileStatus);
+  tile.appendChild(body);
+  return tile;
+}
+
+async function loadAndRenderToys() {
+  loadStatus.textContent = 'Wczytywanie listy…';
+  tilesEl.innerHTML = '';
+  emptyState.hidden = true;
+  try {
+    const session = await getGuestSession();
+    const toys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
+    const unreserved = toys.filter((t) => !t.reserved);
+    loadStatus.textContent = '';
+
+    if (unreserved.length === 0) {
+      emptyState.hidden = false;
+      return;
+    }
+
+    unreserved
+      .sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''))
+      .forEach((toy) => {
+        tilesEl.appendChild(buildTile(toy, loadAndRenderToys));
+      });
+  } catch (err) {
+    loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  }
+}
+
+gateForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  gateError.textContent = '';
+  const entered = document.getElementById('gate-password').value;
+  const hash = await sha256Hex(entered);
+  if (hash !== GUEST_PASSWORD_SHA256) {
+    gateError.textContent = 'Błędne hasło.';
+    return;
+  }
+  localStorage.setItem(GATE_OK_KEY, '1');
+  gate.hidden = true;
+  content.hidden = false;
+  loadAndRenderToys();
+});
+
+if (localStorage.getItem(GATE_OK_KEY) === '1') {
+  gate.hidden = true;
+  content.hidden = false;
+  loadAndRenderToys();
+}

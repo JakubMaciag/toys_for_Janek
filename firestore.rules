@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /toys/{toyId} {
+      function isSignedIn() { return request.auth != null; }
+      function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+
+      function hasOnlyToyFields(data) {
+        return data.keys().hasOnly([
+          'name', 'price', 'currency', 'link', 'imageUrl',
+          'addedAt', 'reserved', 'reservedByName', 'reservedAt'
+        ]);
+      }
+
+      function isValidToyShape(data) {
+        return hasOnlyToyFields(data)
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+          && data.link is string && data.link.size() <= 2000 && data.link.matches('^https?://.+')
+          && (data.price == null || (data.price is number && data.price >= 0 && data.price <= 1000000))
+          && data.currency is string && data.currency.size() <= 10
+          && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
+          && data.addedAt is timestamp
+          && data.reserved is bool
+          && (data.reservedByName == null || (data.reservedByName is string && data.reservedByName.size() <= 60))
+          && (data.reservedAt == null || data.reservedAt is timestamp);
+      }
+
+      function isWithinReservationTimeWindow(ts) {
+        return ts <= request.time + duration.value(10, 'm') && ts >= request.time - duration.value(10, 'm');
+      }
+
+      function isGuestReservation() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return changed.hasOnly(['reserved', 'reservedByName', 'reservedAt'])
+          && resource.data.reserved == false
+          && request.resource.data.reserved == true
+          && (request.resource.data.reservedByName == null || (request.resource.data.reservedByName is string && request.resource.data.reservedByName.size() <= 60))
+          && request.resource.data.reservedAt is timestamp
+          && isWithinReservationTimeWindow(request.resource.data.reservedAt);
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidToyShape(request.resource.data);
+      allow update: if (isAdmin() && isValidToyShape(request.resource.data)) || (isSignedIn() && isGuestReservation());
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

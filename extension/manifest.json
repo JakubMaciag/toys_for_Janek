@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Toys for Janek — Add to List",
+  "version": "1.0.0",
+  "description": "Scrape the current product page and add it to the family wishlist.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Add to Toy List",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://identitytoolkit.googleapis.com/*",
+    "https://securetoken.googleapis.com/*",
+    "https://firestore.googleapis.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
+  "minimum_chrome_version": "102"
+}
