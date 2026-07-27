@@ -30,3 +30,9 @@ service-account*.json
 # Node (scripts/set-admin-claim.js dependencies)
 node_modules/
 
+# Extension config holds a real API key and isn't deployed via GitHub Actions
+# (the extension is loaded unpacked straight from disk), so it's kept out of
+# git entirely instead of using a repo secret. Copy config.example.js to
+# config.js locally and fill in real values — see SETUP.md.
+extension/config.js
+

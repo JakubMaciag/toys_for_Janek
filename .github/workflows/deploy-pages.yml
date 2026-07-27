@@ -1,0 +1,61 @@
+name: Deploy GitHub Pages
+
+# Builds docs/ into a deploy artifact, injecting the Firebase Web API key
+# from a repo secret (Settings -> Secrets and variables -> Actions ->
+# FIREBASE_SITE_API_KEY) in place of the __FIREBASE_SITE_API_KEY__
+# placeholder in docs/config.js, so the raw key never sits in git history.
+# Requires repo Settings -> Pages -> Source = "GitHub Actions" (not
+# "Deploy from a branch").
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject Firebase API key into config.js
+        env:
+          FIREBASE_SITE_API_KEY: ${{ secrets.FIREBASE_SITE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FIREBASE_SITE_API_KEY:-}" ]; then
+            echo "::error::FIREBASE_SITE_API_KEY secret is not set (repo Settings -> Secrets and variables -> Actions)."
+            exit 1
+          fi
+          mkdir -p _site
+          cp -r docs/. _site/
+          sed -i "s|__FIREBASE_SITE_API_KEY__|${FIREBASE_SITE_API_KEY}|" _site/config.js
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
