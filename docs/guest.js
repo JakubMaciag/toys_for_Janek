@@ -1,5 +1,11 @@
-import { FIREBASE_CONFIG, GUEST_PASSWORD_SHA256 } from './config.js';
-import { signInAnonymously, ensureFreshSession, listToys, updateToyFields } from './firebase-rest.js';
+import { FIREBASE_CONFIG } from './config.js';
+import {
+  signInAnonymously,
+  ensureFreshSession,
+  listToys,
+  updateToyFields,
+  getGuestPasswordHash,
+} from './firebase-rest.js';
 
 const GATE_OK_KEY = 'toysForJanek.gateOk';
 const SESSION_KEY = 'toysForJanek.guestSession';
@@ -180,16 +186,29 @@ async function loadAndRenderToys() {
 gateForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   gateError.textContent = '';
-  const entered = document.getElementById('gate-password').value;
-  const hash = await sha256Hex(entered);
-  if (hash !== GUEST_PASSWORD_SHA256) {
-    gateError.textContent = 'Błędne hasło.';
-    return;
+  const submitBtn = gateForm.querySelector('button');
+  submitBtn.disabled = true;
+  try {
+    const expectedHash = await getGuestPasswordHash(FIREBASE_CONFIG.projectId);
+    if (!expectedHash) {
+      gateError.textContent = 'Administrator nie ustawił jeszcze hasła (zrobi to w panelu admina).';
+      return;
+    }
+    const entered = document.getElementById('gate-password').value;
+    const hash = await sha256Hex(entered);
+    if (hash !== expectedHash) {
+      gateError.textContent = 'Błędne hasło.';
+      return;
+    }
+    localStorage.setItem(GATE_OK_KEY, '1');
+    gate.hidden = true;
+    content.hidden = false;
+    loadAndRenderToys();
+  } catch (err) {
+    gateError.textContent = 'Błąd sprawdzania hasła: ' + err.message;
+  } finally {
+    submitBtn.disabled = false;
   }
-  localStorage.setItem(GATE_OK_KEY, '1');
-  gate.hidden = true;
-  content.hidden = false;
-  loadAndRenderToys();
 });
 
 if (localStorage.getItem(GATE_OK_KEY) === '1') {

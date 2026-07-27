@@ -1,10 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /toys/{toyId} {
-      function isSignedIn() { return request.auth != null; }
-      function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
 
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+
+    match /toys/{toyId} {
       function hasOnlyToyFields(data) {
         return data.keys().hasOnly([
           'name', 'price', 'currency', 'link', 'imageUrl',
@@ -43,6 +44,22 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidToyShape(request.resource.data);
       allow update: if (isAdmin() && isValidToyShape(request.resource.data)) || (isSignedIn() && isGuestReservation());
       allow delete: if isAdmin();
+    }
+
+    // Holds the guest-page password hash (doc id "guestGate", field
+    // "passwordSha256") so it lives in Firestore instead of the git repo.
+    // Publicly readable on purpose: the guest page must be able to check it
+    // BEFORE the visitor has signed in (even anonymously). This is still
+    // only a cosmetic deterrent (see SETUP.md) — moving it out of the repo
+    // stops it from sitting in git history / public source browsing and
+    // lets the admin rotate it without a commit+push, but anyone querying
+    // this Firestore REST endpoint directly can already read the hash.
+    match /appConfig/{doc} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['passwordSha256'])
+        && request.resource.data.passwordSha256 is string
+        && request.resource.data.passwordSha256.size() == 64;
     }
 
     match /{document=**} {

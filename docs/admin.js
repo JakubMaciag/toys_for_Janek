@@ -7,7 +7,16 @@ import {
   createToy,
   updateToyFields,
   deleteToy,
+  setGuestPasswordHash,
 } from './firebase-rest.js';
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const SESSION_KEY = 'toysForJanek.adminSession';
 
@@ -22,6 +31,11 @@ const toggleAddBtn = document.getElementById('toggle-add-btn');
 const addForm = document.getElementById('add-form');
 const cancelAddBtn = document.getElementById('cancel-add-btn');
 const addError = document.getElementById('add-error');
+const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+const settingsForm = document.getElementById('settings-form');
+const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+const settingsStatus = document.getElementById('settings-status');
+const settingsGuestPassword = document.getElementById('settings-guest-password');
 
 function getStoredSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -339,6 +353,32 @@ addForm.addEventListener('submit', async (e) => {
     loadAndRenderToys();
   } catch (err) {
     addError.textContent = 'Błąd zapisu: ' + err.message;
+  }
+});
+
+toggleSettingsBtn.addEventListener('click', () => {
+  settingsForm.hidden = !settingsForm.hidden;
+});
+
+cancelSettingsBtn.addEventListener('click', () => {
+  settingsForm.reset();
+  settingsForm.hidden = true;
+  settingsStatus.textContent = '';
+});
+
+settingsForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newPassword = settingsGuestPassword.value;
+  if (!newPassword) return;
+  settingsStatus.textContent = 'Zapisywanie…';
+  try {
+    const session = await getValidSession();
+    const hash = await sha256Hex(newPassword);
+    await setGuestPasswordHash(FIREBASE_CONFIG.projectId, session.idToken, hash);
+    settingsStatus.textContent = 'Hasło dla gości zapisane.';
+    settingsForm.reset();
+  } catch (err) {
+    settingsStatus.textContent = 'Błąd: ' + err.message;
   }
 });
 

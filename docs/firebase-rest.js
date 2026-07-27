@@ -167,3 +167,29 @@ export async function deleteToy(projectId, idToken, toyId) {
   });
   await parseJsonOrThrow(res);
 }
+
+// Guest-page password hash lives in Firestore (doc appConfig/guestGate)
+// instead of this repo — see firestore.rules for why it's public-readable
+// and admin-only-writable. site-only concern, so this isn't duplicated
+// into extension/firebase-rest.js (the extension never needs it).
+const GUEST_GATE_PATH = 'appConfig/guestGate';
+
+// Returns the stored hex hash, or null if the admin hasn't set one yet.
+export async function getGuestPasswordHash(projectId) {
+  const res = await fetch(`${firestoreBase(projectId)}/${GUEST_GATE_PATH}`);
+  if (res.status === 404) return null;
+  const data = await parseJsonOrThrow(res);
+  return fromFirestoreValue((data.fields || {}).passwordSha256);
+}
+
+export async function setGuestPasswordHash(projectId, idToken, sha256Hex) {
+  const res = await fetch(
+    `${firestoreBase(projectId)}/${GUEST_GATE_PATH}?updateMask.fieldPaths=passwordSha256`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { passwordSha256: { stringValue: sha256Hex } } }),
+    }
+  );
+  await parseJsonOrThrow(res);
+}
