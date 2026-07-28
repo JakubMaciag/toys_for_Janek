@@ -64,7 +64,11 @@
           Komentarz administratora (opcjonalnie)
           <input type="text" id="toy-comment" maxlength="300" />
         </label>
-        <button type="submit">Dodaj do listy</button>
+        <label class="checkbox-label">
+          <input type="checkbox" id="toy-already-owned" />
+          To już posiadana zabawka (dodaj do "Już posiadane" zamiast listy życzeń)
+        </label>
+        <button type="submit" id="submit-btn">Dodaj do listy</button>
       </form>
       <p id="save-status" role="status"></p>
       <button id="open-site-btn" class="secondary" type="button" hidden>Zobacz na liście ↗</button>

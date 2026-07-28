@@ -167,3 +167,15 @@ export async function deleteToy(projectId, idToken, toyId) {
   });
   await parseJsonOrThrow(res);
 }
+
+// "Already owned/bought" record — separate collection from `toys`, no
+// reservation concept, admin-only per firestore.rules.
+export async function createOwned(projectId, idToken, item) {
+  const res = await fetch(`${firestoreBase(projectId)}/ownedToys`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toyToFields(item) }),
+  });
+  const data = await parseJsonOrThrow(res);
+  return docToToy(data);
+}

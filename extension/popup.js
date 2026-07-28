@@ -4,6 +4,7 @@ import {
   ensureFreshSession,
   decodeIdTokenClaims,
   createToy,
+  createOwned,
 } from './firebase-rest.js';
 
 const STORAGE_KEY = 'toysForJanek.session';
@@ -20,6 +21,12 @@ const imageInput = document.getElementById('toy-image');
 const imagePreview = document.getElementById('toy-image-preview');
 const openSiteBtn = document.getElementById('open-site-btn');
 const openAdminBtn = document.getElementById('open-admin-btn');
+const alreadyOwnedCheckbox = document.getElementById('toy-already-owned');
+const submitBtn = document.getElementById('submit-btn');
+
+alreadyOwnedCheckbox.addEventListener('change', () => {
+  submitBtn.textContent = alreadyOwnedCheckbox.checked ? 'Dodaj do już posiadanych' : 'Dodaj do listy';
+});
 
 function openAdminPanel() {
   chrome.tabs.create({ url: `${SITE_URL}admin.html` });
@@ -106,6 +113,8 @@ logoutBtn.addEventListener('click', async () => {
 scanBtn.addEventListener('click', async () => {
   saveStatus.textContent = '';
   openSiteBtn.hidden = true;
+  alreadyOwnedCheckbox.checked = false;
+  submitBtn.textContent = 'Dodaj do listy';
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const [{ result }] = await chrome.scripting.executeScript({
@@ -149,19 +158,12 @@ toyForm.addEventListener('submit', async (e) => {
 
   const priceRaw = document.getElementById('toy-price').value;
   const originalPriceRaw = document.getElementById('toy-original-price').value;
-  const toy = {
-    name: document.getElementById('toy-name').value.trim(),
-    price: priceRaw === '' ? null : parseFloat(priceRaw),
-    originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
-    currency: document.getElementById('toy-currency').value.trim() || 'PLN',
-    imageUrl: document.getElementById('toy-image').value.trim() || null,
-    link,
-    adminComment: document.getElementById('toy-comment').value.trim() || null,
-    addedAt: new Date(),
-    reserved: false,
-    reservedByName: null,
-    reservedAt: null,
-  };
+  const name = document.getElementById('toy-name').value.trim();
+  const price = priceRaw === '' ? null : parseFloat(priceRaw);
+  const currency = document.getElementById('toy-currency').value.trim() || 'PLN';
+  const imageUrl = document.getElementById('toy-image').value.trim() || null;
+  const adminComment = document.getElementById('toy-comment').value.trim() || null;
+  const alreadyOwned = alreadyOwnedCheckbox.checked;
 
   try {
     const session = await getValidSession();
@@ -170,12 +172,38 @@ toyForm.addEventListener('submit', async (e) => {
       showLoggedOut();
       return;
     }
-    await createToy(FIREBASE_CONFIG.projectId, session.idToken, toy);
-    saveStatus.textContent = 'Dodano do listy!';
+    if (alreadyOwned) {
+      await createOwned(FIREBASE_CONFIG.projectId, session.idToken, {
+        name,
+        price,
+        currency,
+        imageUrl,
+        link,
+        adminComment,
+        addedAt: new Date(),
+      });
+      saveStatus.textContent = 'Dodano do już posiadanych!';
+    } else {
+      await createToy(FIREBASE_CONFIG.projectId, session.idToken, {
+        name,
+        price,
+        originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
+        currency,
+        imageUrl,
+        link,
+        adminComment,
+        addedAt: new Date(),
+        reserved: false,
+        reservedByName: null,
+        reservedAt: null,
+      });
+      saveStatus.textContent = 'Dodano do listy!';
+    }
     toyForm.reset();
     toyForm.hidden = true;
     imagePreview.hidden = true;
     openSiteBtn.hidden = false;
+    submitBtn.textContent = 'Dodaj do listy';
   } catch (err) {
     saveStatus.textContent = 'Błąd zapisu: ' + err.message;
   }
