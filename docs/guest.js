@@ -82,6 +82,19 @@ function buildPriceElement(toy) {
   return wrap;
 }
 
+function formatCheckedAt(toy) {
+  if (!toy.addedAt) return null;
+  const d = new Date(toy.addedAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function buildTile(toy, onReserved) {
   const tile = document.createElement('article');
   tile.className = 'tile';
@@ -103,6 +116,14 @@ function buildTile(toy, onReserved) {
 
   const priceEl = buildPriceElement(toy);
   if (priceEl) body.appendChild(priceEl);
+
+  const checkedAt = formatCheckedAt(toy);
+  if (checkedAt) {
+    const checkedEl = document.createElement('div');
+    checkedEl.className = 'tile-checked-at';
+    checkedEl.textContent = `Cena sprawdzona: ${checkedAt}`;
+    body.appendChild(checkedEl);
+  }
 
   if (toy.link && /^https?:\/\//i.test(toy.link)) {
     const link = document.createElement('a');
