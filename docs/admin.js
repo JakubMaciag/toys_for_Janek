@@ -74,10 +74,11 @@ function showLoggedIn() {
   applyPrefillFromUrl();
 }
 
-// Handles the handoff from the mobile bookmarklet (bookmarklet.html): if the
-// page was opened with prefill* query params, open the add-toy form
-// pre-filled with what was scraped from the product page, then strip the
-// params from the URL so a refresh doesn't re-trigger it.
+// Handles the handoff from either the mobile bookmarklet (bookmarklet.html,
+// full scrape) or the Android Share Target (manifest.json, link + title
+// only): if the page was opened with prefill* query params, open the
+// add-toy form pre-filled with whatever was provided, then strip the params
+// from the URL so a refresh doesn't re-trigger it.
 function applyPrefillFromUrl() {
   const params = new URLSearchParams(location.search);
   if (!params.has('prefillLink')) return;
