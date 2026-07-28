@@ -156,7 +156,7 @@ function buildTile(toy, onReserved) {
 
   const nameLabel = document.createElement('label');
   nameLabel.className = 'reserve-name-label';
-  nameLabel.textContent = 'Twoje imię (opcjonalnie, żeby inni wiedzieli kto kupuje)';
+  nameLabel.textContent = 'Twoje imię (opcjonalnie — zobaczą je tylko rodzice, nie inni goście)';
 
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
