@@ -17,6 +17,11 @@ const content = document.getElementById('content');
 const loadStatus = document.getElementById('load-status');
 const tilesEl = document.getElementById('tiles');
 const emptyState = document.getElementById('empty-state');
+const sortSelect = document.getElementById('sort-select');
+const priceMinInput = document.getElementById('price-min');
+const priceMaxInput = document.getElementById('price-max');
+
+let currentToys = [];
 
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
@@ -165,6 +170,44 @@ function buildTile(toy, onReserved) {
   return tile;
 }
 
+function renderToys() {
+  tilesEl.innerHTML = '';
+  emptyState.hidden = true;
+
+  const min = priceMinInput.value === '' ? null : parseFloat(priceMinInput.value);
+  const max = priceMaxInput.value === '' ? null : parseFloat(priceMaxInput.value);
+
+  let toShow = currentToys.filter((t) => {
+    if (min !== null && (t.price === null || t.price === undefined || t.price < min)) return false;
+    if (max !== null && (t.price === null || t.price === undefined || t.price > max)) return false;
+    return true;
+  });
+
+  const sortMode = sortSelect.value;
+  if (sortMode === 'price-asc') {
+    toShow.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  } else if (sortMode === 'price-desc') {
+    toShow.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+  } else {
+    toShow.sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''));
+  }
+
+  if (currentToys.length === 0) {
+    emptyState.hidden = false;
+    emptyState.textContent = 'Wszystkie zabawki mają już swoich kupujących! 🎉';
+    return;
+  }
+  if (toShow.length === 0) {
+    emptyState.hidden = false;
+    emptyState.textContent = 'Żadna zabawka nie pasuje do wybranego zakresu cen.';
+    return;
+  }
+
+  toShow.forEach((toy) => {
+    tilesEl.appendChild(buildTile(toy, loadAndRenderToys));
+  });
+}
+
 async function loadAndRenderToys() {
   loadStatus.textContent = 'Wczytywanie listy…';
   tilesEl.innerHTML = '';
@@ -172,23 +215,17 @@ async function loadAndRenderToys() {
   try {
     const session = await getGuestSession();
     const toys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
-    const unreserved = toys.filter((t) => !t.reserved);
+    currentToys = toys.filter((t) => !t.reserved);
     loadStatus.textContent = '';
-
-    if (unreserved.length === 0) {
-      emptyState.hidden = false;
-      return;
-    }
-
-    unreserved
-      .sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''))
-      .forEach((toy) => {
-        tilesEl.appendChild(buildTile(toy, loadAndRenderToys));
-      });
+    renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
   }
 }
+
+sortSelect.addEventListener('change', renderToys);
+priceMinInput.addEventListener('input', renderToys);
+priceMaxInput.addEventListener('input', renderToys);
 
 gateForm.addEventListener('submit', async (e) => {
   e.preventDefault();

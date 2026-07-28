@@ -36,6 +36,9 @@ const settingsForm = document.getElementById('settings-form');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 const settingsStatus = document.getElementById('settings-status');
 const settingsGuestPassword = document.getElementById('settings-guest-password');
+const filterSelect = document.getElementById('filter-select');
+
+let currentToys = [];
 
 function getStoredSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -274,16 +277,27 @@ function buildEditTile(toy, refresh) {
   return tile;
 }
 
+function renderToys() {
+  tilesEl.innerHTML = '';
+  const filter = filterSelect.value;
+  const toShow = currentToys.filter((t) => {
+    if (filter === 'unreserved') return !t.reserved;
+    if (filter === 'reserved') return !!t.reserved;
+    return true;
+  });
+  loadStatus.textContent = `${toShow.length} / ${currentToys.length} zabawek`;
+  toShow
+    .sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''))
+    .forEach((toy) => tilesEl.appendChild(buildViewTile(toy, loadAndRenderToys)));
+}
+
 async function loadAndRenderToys() {
   loadStatus.textContent = 'Wczytywanie…';
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
-    const toys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
-    loadStatus.textContent = `${toys.length} zabawek na liście`;
-    toys
-      .sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''))
-      .forEach((toy) => tilesEl.appendChild(buildViewTile(toy, loadAndRenderToys)));
+    currentToys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
+    renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
   }
@@ -355,6 +369,8 @@ addForm.addEventListener('submit', async (e) => {
     addError.textContent = 'Błąd zapisu: ' + err.message;
   }
 });
+
+filterSelect.addEventListener('change', renderToys);
 
 toggleSettingsBtn.addEventListener('click', () => {
   settingsForm.hidden = !settingsForm.hidden;

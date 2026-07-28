@@ -37,6 +37,14 @@
         <div class="admin-toolbar">
           <button id="toggle-add-btn" type="button">+ Dodaj zabawkę</button>
           <button id="toggle-settings-btn" type="button" class="secondary">⚙️ Ustawienia</button>
+          <label class="filter-label">
+            Pokaż
+            <select id="filter-select">
+              <option value="all">Wszystkie</option>
+              <option value="unreserved">Tylko niezarezerwowane</option>
+              <option value="reserved">Tylko zarezerwowane</option>
+            </select>
+          </label>
           <p id="load-status" class="status"></p>
         </div>
 
