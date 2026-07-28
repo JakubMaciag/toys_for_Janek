@@ -7,6 +7,7 @@ import {
   createToy,
   updateToyFields,
   deleteToy,
+  createOwned,
   setGuestPasswordHash,
 } from './firebase-rest.js';
 
@@ -195,7 +196,7 @@ function buildViewTile(toy, refresh) {
   const toggleReservedBtn = document.createElement('button');
   toggleReservedBtn.type = 'button';
   toggleReservedBtn.className = 'secondary';
-  toggleReservedBtn.textContent = toy.reserved ? 'Cofnij rezerwację' : 'Oznacz jako kupione';
+  toggleReservedBtn.textContent = toy.reserved ? 'Cofnij rezerwację' : 'Oznacz jako zarezerwowane';
   toggleReservedBtn.addEventListener('click', async () => {
     toggleReservedBtn.disabled = true;
     status.textContent = 'Zapisywanie…';
@@ -231,7 +232,34 @@ function buildViewTile(toy, refresh) {
     }
   });
 
-  actions.append(editBtn, toggleReservedBtn, deleteBtn);
+  const moveToOwnedBtn = document.createElement('button');
+  moveToOwnedBtn.type = 'button';
+  moveToOwnedBtn.className = 'secondary';
+  moveToOwnedBtn.textContent = 'Przenieś do już kupionych →';
+  moveToOwnedBtn.addEventListener('click', async () => {
+    if (!confirm(`Przenieść "${toy.name}" do osobnej listy "już kupione" i usunąć z listy życzeń?`)) return;
+    moveToOwnedBtn.disabled = true;
+    status.textContent = 'Przenoszenie…';
+    try {
+      const session = await getValidSession();
+      await createOwned(FIREBASE_CONFIG.projectId, session.idToken, {
+        name: toy.name,
+        price: toy.price ?? null,
+        currency: toy.currency || 'PLN',
+        imageUrl: toy.imageUrl ?? null,
+        link: toy.link ?? null,
+        adminComment: toy.adminComment ?? null,
+        addedAt: new Date(),
+      });
+      await deleteToy(FIREBASE_CONFIG.projectId, session.idToken, toy.id);
+      refresh();
+    } catch (err) {
+      status.textContent = 'Błąd: ' + err.message;
+      moveToOwnedBtn.disabled = false;
+    }
+  });
+
+  actions.append(editBtn, toggleReservedBtn, moveToOwnedBtn, deleteBtn);
   body.appendChild(actions);
   body.appendChild(status);
   tile.appendChild(body);

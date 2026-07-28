@@ -168,6 +168,48 @@ export async function deleteToy(projectId, idToken, toyId) {
   await parseJsonOrThrow(res);
 }
 
+// "Already owned/bought" record — a separate collection from `toys`, not
+// tied to the guest wishlist/reservation flow at all (see firestore.rules:
+// admin-only read+write, guests have no access whatsoever).
+export async function listOwned(projectId, idToken) {
+  const res = await fetch(`${firestoreBase(projectId)}/ownedToys?pageSize=300`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  const data = await parseJsonOrThrow(res);
+  return (data.documents || []).map(docToToy);
+}
+
+export async function createOwned(projectId, idToken, item) {
+  const res = await fetch(`${firestoreBase(projectId)}/ownedToys`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toyToFields(item) }),
+  });
+  const data = await parseJsonOrThrow(res);
+  return docToToy(data);
+}
+
+export async function updateOwnedFields(projectId, idToken, itemId, partialFields) {
+  const mask = Object.keys(partialFields)
+    .map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`)
+    .join('&');
+  const res = await fetch(`${firestoreBase(projectId)}/ownedToys/${itemId}?${mask}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toyToFields(partialFields) }),
+  });
+  const data = await parseJsonOrThrow(res);
+  return docToToy(data);
+}
+
+export async function deleteOwned(projectId, idToken, itemId) {
+  const res = await fetch(`${firestoreBase(projectId)}/ownedToys/${itemId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  await parseJsonOrThrow(res);
+}
+
 // Guest-page password hash lives in Firestore (doc appConfig/guestGate)
 // instead of this repo — see firestore.rules for why it's public-readable
 // and admin-only-writable. site-only concern, so this isn't duplicated

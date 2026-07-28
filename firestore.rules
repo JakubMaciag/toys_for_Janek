@@ -48,6 +48,30 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Separate, admin-only record of toys Janek already has/already bought —
+    // unrelated to the guest wishlist/reservation flow above. Never exposed
+    // to guests: both read and write require isAdmin().
+    match /ownedToys/{itemId} {
+      function hasOnlyOwnedFields(data) {
+        return data.keys().hasOnly(['name', 'price', 'currency', 'link', 'imageUrl', 'adminComment', 'addedAt']);
+      }
+
+      function isValidOwnedShape(data) {
+        return hasOnlyOwnedFields(data)
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+          && (data.link == null || (data.link is string && data.link.size() <= 2000 && data.link.matches('^https?://.+')))
+          && (data.price == null || (data.price is number && data.price >= 0 && data.price <= 1000000))
+          && data.currency is string && data.currency.size() <= 10
+          && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
+          && (!('adminComment' in data) || data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
+          && data.addedAt is timestamp;
+      }
+
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidOwnedShape(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
     // Holds the guest-page password hash (doc id "guestGate", field
     // "passwordSha256") so it lives in Firestore instead of the git repo.
     // Publicly readable on purpose: the guest page must be able to check it
