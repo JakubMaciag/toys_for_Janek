@@ -236,7 +236,10 @@ function renderToys() {
     toShow.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   } else if (sortMode === 'price-desc') {
     toShow.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+  } else if (sortMode === 'added-asc') {
+    toShow.sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''));
   } else {
+    // added-desc (default)
     toShow.sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
   }
 
