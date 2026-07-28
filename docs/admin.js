@@ -329,7 +329,7 @@ function renderToys() {
   });
   loadStatus.textContent = `${toShow.length} / ${currentToys.length} zabawek`;
   toShow
-    .sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''))
+    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
     .forEach((toy) => tilesEl.appendChild(buildViewTile(toy, loadAndRenderToys)));
 }
 
