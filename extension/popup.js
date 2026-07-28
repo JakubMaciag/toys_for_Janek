@@ -19,10 +19,14 @@ const saveStatus = document.getElementById('save-status');
 const imageInput = document.getElementById('toy-image');
 const imagePreview = document.getElementById('toy-image-preview');
 const openSiteBtn = document.getElementById('open-site-btn');
+const openAdminBtn = document.getElementById('open-admin-btn');
 
-openSiteBtn.addEventListener('click', () => {
+function openAdminPanel() {
   chrome.tabs.create({ url: `${SITE_URL}admin.html` });
-});
+}
+
+openSiteBtn.addEventListener('click', openAdminPanel);
+openAdminBtn.addEventListener('click', openAdminPanel);
 
 async function getStoredSession() {
   const data = await chrome.storage.local.get(STORAGE_KEY);
