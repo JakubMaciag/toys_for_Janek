@@ -99,14 +99,20 @@ function buildTile(toy, onReserved) {
 
   const nameForm = document.createElement('div');
   nameForm.hidden = true;
-  nameForm.style.display = 'flex';
-  nameForm.style.gap = '6px';
-  nameForm.style.marginTop = '6px';
+  nameForm.className = 'reserve-name-form';
+
+  const nameLabel = document.createElement('label');
+  nameLabel.className = 'reserve-name-label';
+  nameLabel.textContent = 'Twoje imię (opcjonalnie, żeby inni wiedzieli kto kupuje)';
 
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
-  nameInput.placeholder = 'Twoje imię (opcjonalnie)';
+  nameInput.placeholder = 'np. Ciocia Kasia';
   nameInput.maxLength = 60;
+  nameLabel.appendChild(nameInput);
+
+  const nameActions = document.createElement('div');
+  nameActions.className = 'reserve-name-actions';
 
   const confirmBtn = document.createElement('button');
   confirmBtn.type = 'button';
@@ -117,7 +123,8 @@ function buildTile(toy, onReserved) {
   cancelBtn.className = 'secondary';
   cancelBtn.textContent = 'Anuluj';
 
-  nameForm.append(nameInput, confirmBtn, cancelBtn);
+  nameActions.append(confirmBtn, cancelBtn);
+  nameForm.append(nameLabel, nameActions);
 
   const tileStatus = document.createElement('p');
   tileStatus.className = 'status';
