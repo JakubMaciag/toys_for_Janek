@@ -138,12 +138,15 @@ toyForm.addEventListener('submit', async (e) => {
   }
 
   const priceRaw = document.getElementById('toy-price').value;
+  const originalPriceRaw = document.getElementById('toy-original-price').value;
   const toy = {
     name: document.getElementById('toy-name').value.trim(),
     price: priceRaw === '' ? null : parseFloat(priceRaw),
+    originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
     currency: document.getElementById('toy-currency').value.trim() || 'PLN',
     imageUrl: document.getElementById('toy-image').value.trim() || null,
     link,
+    adminComment: document.getElementById('toy-comment').value.trim() || null,
     addedAt: new Date(),
     reserved: false,
     reservedByName: null,

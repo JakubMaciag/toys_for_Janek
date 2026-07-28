@@ -41,6 +41,10 @@
           <input type="number" id="toy-price" min="0" step="0.01" />
         </label>
         <label>
+          Cena przed promocją (opcjonalnie)
+          <input type="number" id="toy-original-price" min="0" step="0.01" />
+        </label>
+        <label>
           Waluta
           <input type="text" id="toy-currency" maxlength="10" value="PLN" />
         </label>
@@ -52,6 +56,10 @@
         <label>
           Link do sklepu
           <input type="url" id="toy-link" required maxlength="2000" readonly />
+        </label>
+        <label>
+          Komentarz administratora (opcjonalnie)
+          <input type="text" id="toy-comment" maxlength="300" />
         </label>
         <button type="submit">Dodaj do listy</button>
       </form>

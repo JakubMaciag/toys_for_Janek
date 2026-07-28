@@ -8,7 +8,7 @@ service cloud.firestore {
     match /toys/{toyId} {
       function hasOnlyToyFields(data) {
         return data.keys().hasOnly([
-          'name', 'price', 'currency', 'link', 'imageUrl',
+          'name', 'price', 'originalPrice', 'currency', 'link', 'imageUrl', 'adminComment',
           'addedAt', 'reserved', 'reservedByName', 'reservedAt'
         ]);
       }
@@ -18,8 +18,10 @@ service cloud.firestore {
           && data.name is string && data.name.size() > 0 && data.name.size() <= 200
           && data.link is string && data.link.size() <= 2000 && data.link.matches('^https?://.+')
           && (data.price == null || (data.price is number && data.price >= 0 && data.price <= 1000000))
+          && (data.originalPrice == null || (data.originalPrice is number && data.originalPrice >= 0 && data.originalPrice <= 1000000))
           && data.currency is string && data.currency.size() <= 10
           && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
+          && (data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
           && data.addedAt is timestamp
           && data.reserved is bool
           && (data.reservedByName == null || (data.reservedByName is string && data.reservedByName.size() <= 60))

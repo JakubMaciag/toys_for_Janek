@@ -85,6 +85,31 @@ function formatPrice(toy) {
   return `${toy.price.toFixed(2)} ${toy.currency || ''}`.trim();
 }
 
+function buildPriceElement(toy) {
+  const price = formatPrice(toy);
+  const hasOriginal = toy.originalPrice !== null && toy.originalPrice !== undefined;
+  if (!price && !hasOriginal) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tile-price';
+
+  if (hasOriginal) {
+    const was = document.createElement('span');
+    was.className = 'tile-price-original';
+    was.textContent = `${toy.originalPrice.toFixed(2)} ${toy.currency || ''}`.trim();
+    wrap.appendChild(was);
+  }
+
+  if (price) {
+    const now = document.createElement('span');
+    now.className = 'tile-price-current';
+    now.textContent = price;
+    wrap.appendChild(now);
+  }
+
+  return wrap;
+}
+
 function buildViewTile(toy, refresh) {
   const tile = document.createElement('article');
   tile.className = 'tile' + (toy.reserved ? ' reserved' : '');
@@ -104,13 +129,8 @@ function buildViewTile(toy, refresh) {
   name.textContent = toy.name || '(bez nazwy)';
   body.appendChild(name);
 
-  const price = formatPrice(toy);
-  if (price) {
-    const priceEl = document.createElement('div');
-    priceEl.className = 'tile-price';
-    priceEl.textContent = price;
-    body.appendChild(priceEl);
-  }
+  const priceEl = buildPriceElement(toy);
+  if (priceEl) body.appendChild(priceEl);
 
   if (toy.link && /^https?:\/\//i.test(toy.link)) {
     const link = document.createElement('a');
@@ -120,6 +140,13 @@ function buildViewTile(toy, refresh) {
     link.rel = 'noopener noreferrer';
     link.textContent = 'Zobacz w sklepie ↗';
     body.appendChild(link);
+  }
+
+  if (toy.adminComment) {
+    const comment = document.createElement('div');
+    comment.className = 'tile-comment';
+    comment.textContent = toy.adminComment;
+    body.appendChild(comment);
   }
 
   if (toy.reserved) {
@@ -211,6 +238,12 @@ function buildEditTile(toy, refresh) {
   priceInput.step = '0.01';
   priceInput.value = toy.price ?? '';
 
+  const originalPriceInput = document.createElement('input');
+  originalPriceInput.type = 'number';
+  originalPriceInput.min = '0';
+  originalPriceInput.step = '0.01';
+  originalPriceInput.value = toy.originalPrice ?? '';
+
   const currencyInput = document.createElement('input');
   currencyInput.type = 'text';
   currencyInput.maxLength = 10;
@@ -227,12 +260,19 @@ function buildEditTile(toy, refresh) {
   linkInput.maxLength = 2000;
   linkInput.value = toy.link || '';
 
+  const commentInput = document.createElement('input');
+  commentInput.type = 'text';
+  commentInput.maxLength = 300;
+  commentInput.value = toy.adminComment || '';
+
   form.append(
     labeledInput('Nazwa', nameInput),
     labeledInput('Cena', priceInput),
+    labeledInput('Cena przed promocją (opcjonalnie)', originalPriceInput),
     labeledInput('Waluta', currencyInput),
     labeledInput('Zdjęcie (URL)', imageInput),
-    labeledInput('Link do sklepu', linkInput)
+    labeledInput('Link do sklepu', linkInput),
+    labeledInput('Komentarz administratora (opcjonalnie)', commentInput)
   );
 
   const actions = document.createElement('div');
@@ -263,9 +303,11 @@ function buildEditTile(toy, refresh) {
       await updateToyFields(FIREBASE_CONFIG.projectId, session.idToken, toy.id, {
         name: nameInput.value.trim(),
         price: priceInput.value === '' ? null : parseFloat(priceInput.value),
+        originalPrice: originalPriceInput.value === '' ? null : parseFloat(originalPriceInput.value),
         currency: currencyInput.value.trim() || 'PLN',
         imageUrl: imageInput.value.trim() || null,
         link: linkInput.value.trim(),
+        adminComment: commentInput.value.trim() || null,
       });
       refresh();
     } catch (err) {
@@ -348,12 +390,15 @@ addForm.addEventListener('submit', async (e) => {
     return;
   }
   const priceRaw = document.getElementById('add-price').value;
+  const originalPriceRaw = document.getElementById('add-original-price').value;
   const toy = {
     name: document.getElementById('add-name').value.trim(),
     price: priceRaw === '' ? null : parseFloat(priceRaw),
+    originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
     currency: document.getElementById('add-currency').value.trim() || 'PLN',
     imageUrl: document.getElementById('add-image').value.trim() || null,
     link,
+    adminComment: document.getElementById('add-comment').value.trim() || null,
     addedAt: new Date(),
     reserved: false,
     reservedByName: null,

@@ -63,9 +63,11 @@
         <form id="add-form" class="admin-form" hidden>
           <label>Nazwa<input type="text" id="add-name" required maxlength="200" /></label>
           <label>Cena<input type="number" id="add-price" min="0" step="0.01" /></label>
+          <label>Cena przed promocją (opcjonalnie)<input type="number" id="add-original-price" min="0" step="0.01" /></label>
           <label>Waluta<input type="text" id="add-currency" maxlength="10" value="PLN" /></label>
           <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
           <label>Link do sklepu<input type="url" id="add-link" required maxlength="2000" /></label>
+          <label>Komentarz administratora (opcjonalnie)<input type="text" id="add-comment" maxlength="300" /></label>
           <div class="form-actions">
             <button type="submit">Zapisz nową zabawkę</button>
             <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>

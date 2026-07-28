@@ -143,13 +143,35 @@ button.danger {
 }
 
 .tile-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tile-price-current {
   color: var(--accent-dark);
   font-weight: 600;
+}
+
+.tile-price-original {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 13px;
 }
 
 .tile-link {
   font-size: 13px;
   color: var(--accent);
+}
+
+.tile-comment {
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  padding: 6px 8px;
+  border-radius: 4px;
 }
 
 .tile.reserved {

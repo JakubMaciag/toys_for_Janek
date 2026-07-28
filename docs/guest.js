@@ -57,6 +57,31 @@ function formatPrice(toy) {
   return `${toy.price.toFixed(2)} ${toy.currency || ''}`.trim();
 }
 
+function buildPriceElement(toy) {
+  const price = formatPrice(toy);
+  const hasOriginal = toy.originalPrice !== null && toy.originalPrice !== undefined;
+  if (!price && !hasOriginal) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tile-price';
+
+  if (hasOriginal) {
+    const was = document.createElement('span');
+    was.className = 'tile-price-original';
+    was.textContent = `${toy.originalPrice.toFixed(2)} ${toy.currency || ''}`.trim();
+    wrap.appendChild(was);
+  }
+
+  if (price) {
+    const now = document.createElement('span');
+    now.className = 'tile-price-current';
+    now.textContent = price;
+    wrap.appendChild(now);
+  }
+
+  return wrap;
+}
+
 function buildTile(toy, onReserved) {
   const tile = document.createElement('article');
   tile.className = 'tile';
@@ -76,13 +101,8 @@ function buildTile(toy, onReserved) {
   name.textContent = toy.name || '(bez nazwy)';
   body.appendChild(name);
 
-  const price = formatPrice(toy);
-  if (price) {
-    const priceEl = document.createElement('div');
-    priceEl.className = 'tile-price';
-    priceEl.textContent = price;
-    body.appendChild(priceEl);
-  }
+  const priceEl = buildPriceElement(toy);
+  if (priceEl) body.appendChild(priceEl);
 
   if (toy.link && /^https?:\/\//i.test(toy.link)) {
     const link = document.createElement('a');
@@ -92,6 +112,13 @@ function buildTile(toy, onReserved) {
     link.rel = 'noopener noreferrer';
     link.textContent = 'Zobacz w sklepie ↗';
     body.appendChild(link);
+  }
+
+  if (toy.adminComment) {
+    const comment = document.createElement('div');
+    comment.className = 'tile-comment';
+    comment.textContent = toy.adminComment;
+    body.appendChild(comment);
   }
 
   const actions = document.createElement('div');
