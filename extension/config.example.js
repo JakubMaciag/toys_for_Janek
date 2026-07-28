@@ -8,3 +8,6 @@ export const FIREBASE_CONFIG = {
   apiKey: 'REPLACE_WITH_YOUR_FIREBASE_WEB_API_KEY',
   projectId: 'REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID',
 };
+
+// Opened in a new tab by the "Zobacz na liście" button after a successful save.
+export const SITE_URL = 'REPLACE_WITH_YOUR_GITHUB_PAGES_URL/';

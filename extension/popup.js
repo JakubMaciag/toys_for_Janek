@@ -1,4 +1,4 @@
-import { FIREBASE_CONFIG } from './config.js';
+import { FIREBASE_CONFIG, SITE_URL } from './config.js';
 import {
   signInWithPassword,
   ensureFreshSession,
@@ -18,6 +18,11 @@ const toyForm = document.getElementById('toy-form');
 const saveStatus = document.getElementById('save-status');
 const imageInput = document.getElementById('toy-image');
 const imagePreview = document.getElementById('toy-image-preview');
+const openSiteBtn = document.getElementById('open-site-btn');
+
+openSiteBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: `${SITE_URL}admin.html` });
+});
 
 async function getStoredSession() {
   const data = await chrome.storage.local.get(STORAGE_KEY);
@@ -96,6 +101,7 @@ logoutBtn.addEventListener('click', async () => {
 
 scanBtn.addEventListener('click', async () => {
   saveStatus.textContent = '';
+  openSiteBtn.hidden = true;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const [{ result }] = await chrome.scripting.executeScript({
@@ -165,6 +171,7 @@ toyForm.addEventListener('submit', async (e) => {
     toyForm.reset();
     toyForm.hidden = true;
     imagePreview.hidden = true;
+    openSiteBtn.hidden = false;
   } catch (err) {
     saveStatus.textContent = 'Błąd zapisu: ' + err.message;
   }
