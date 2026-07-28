@@ -10,11 +10,16 @@
 // (script-src not allowing our domain) will silently block the injected
 // script. There's no bookmarklet-side fix for that; those sites just won't
 // work with this approach.
+//
+// Deliberately has zero whitespace characters: some mobile bookmark-URL
+// fields (Samsung Internet included) reject any raw space in the address,
+// and `var x = ...` declarations need at least one space after the keyword.
+// Object.assign() sidesteps that by building+appending the <script> without
+// ever naming an intermediate variable.
 function buildLoaderCode() {
   return (
-    "javascript:(function(){var d=document,s=d.createElement('script');" +
-    "s.src='https://jakubmaciag.github.io/toys_for_Janek/bookmarklet-payload.js?_='+Date.now();" +
-    'd.body.appendChild(s);})();'
+    "javascript:(function(){document.body.appendChild(Object.assign(document.createElement('script')," +
+    "{src:'https://jakubmaciag.github.io/toys_for_Janek/bookmarklet-payload.js?_='+Date.now()}))})();"
   );
 }
 
