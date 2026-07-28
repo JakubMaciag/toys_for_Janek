@@ -1,8 +1,8 @@
 # Konfiguracja — Lista zabawek dla Janka
 
 Ten projekt składa się z trzech części:
-- `extension/` — wtyczka do Chrome (Manifest V3), do wskazywania zabawek podczas przeglądania sklepów.
-- `docs/` — statyczna strona (hostowana za darmo na GitHub Pages) z widokiem gościa i panelem administratora.
+- `extension/` — wtyczka do Chrome (Manifest V3), do wskazywania zabawek podczas przeglądania sklepów na komputerze.
+- `docs/` — statyczna strona (hostowana za darmo na GitHub Pages) z widokiem gościa, panelem administratora i stroną `bookmarklet.html` — odpowiednikiem wtyczki na telefon (Samsung Internet/Chrome na Androidzie nie obsługują klasycznych rozszerzeń, więc to "zakładka-program"; instrukcja instalacji jest na samej stronie `bookmarklet.html`, link widoczny w nagłówku panelu admina).
 - Wspólny backend: **Firebase** (plan darmowy Spark — tylko Firestore + Authentication, bez Cloud Functions/Blaze).
 
 Poniżej pełna konfiguracja od zera. Zajmie ok. 20–30 minut, raz.

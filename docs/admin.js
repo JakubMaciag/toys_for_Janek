@@ -71,6 +71,25 @@ function showLoggedIn() {
   loginView.hidden = true;
   adminView.hidden = false;
   logoutBtn.hidden = false;
+  applyPrefillFromUrl();
+}
+
+// Handles the handoff from the mobile bookmarklet (bookmarklet.html): if the
+// page was opened with prefill* query params, open the add-toy form
+// pre-filled with what was scraped from the product page, then strip the
+// params from the URL so a refresh doesn't re-trigger it.
+function applyPrefillFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('prefillLink')) return;
+
+  document.getElementById('add-name').value = params.get('prefillName') || '';
+  document.getElementById('add-price').value = params.get('prefillPrice') || '';
+  document.getElementById('add-currency').value = params.get('prefillCurrency') || 'PLN';
+  document.getElementById('add-image').value = params.get('prefillImage') || '';
+  document.getElementById('add-link').value = params.get('prefillLink') || '';
+  addForm.hidden = false;
+
+  history.replaceState(null, '', location.pathname);
 }
 
 function labeledInput(labelText, inputEl) {

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dodaj zabawkę z telefonu</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>📱 Dodaj zabawkę z telefonu</h1>
+      <a href="admin.html" style="color: white; font-size: 13px">Panel administratora</a>
+    </header>
+
+    <main>
+      <p class="status">
+        To jest tzw. "bookmarklet" — mini-program schowany w zakładce przeglądarki. Działa w
+        <strong>każdej</strong> przeglądarce na telefonie (Samsung Internet, Chrome na Androidzie
+        i inne), bez instalowania żadnej wtyczki — mobilne przeglądarki generalnie nie obsługują
+        klasycznych rozszerzeń tak jak Chrome na komputerze.
+      </p>
+
+      <h2>Instalacja (raz)</h2>
+      <ol>
+        <li>Wejdź na dowolną stronę (np. google.com) i dodaj ją do zakładek przeglądarki.</li>
+        <li>Otwórz listę zakładek, znajdź tę nową i wejdź w jej edycję (zwykle długie przytrzymanie → "Edytuj").</li>
+        <li>Zmień nazwę zakładki np. na "Dodaj zabawkę".</li>
+        <li>
+          W polu adresu (URL) zaznacz całość i wklej poniższy kod — kliknij najpierw
+          <strong>"Kopiuj kod"</strong>.
+        </li>
+        <li>Zapisz zakładkę.</li>
+      </ol>
+
+      <textarea id="bookmarklet-code" readonly rows="5" style="width: 100%; font-family: monospace; font-size: 11px"></textarea>
+      <button id="copy-btn" type="button">Kopiuj kod</button>
+      <p id="copy-status" class="status"></p>
+
+      <p class="status">
+        Na komputerze możesz zamiast tego po prostu przeciągnąć ten link na pasek zakładek:
+        <a id="drag-link" href="#">📌 Dodaj zabawkę</a>
+      </p>
+
+      <h2>Użycie</h2>
+      <ol>
+        <li>Wejdź na stronę produktu w dowolnym sklepie.</li>
+        <li>Otwórz zakładki i stuknij "Dodaj zabawkę".</li>
+        <li>
+          Otworzy się panel administratora (zaloguj się, jeśli trzeba) z podpowiedzianą nazwą,
+          zdjęciem i ceną — popraw je i zapisz, dokładnie tak jak przy dodawaniu ręcznym.
+        </li>
+      </ol>
+    </main>
+
+    <script src="bookmarklet.js"></script>
+  </body>
+</html>
