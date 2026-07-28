@@ -158,8 +158,8 @@ function buildTile(toy, onReserved) {
     }
   });
 
-  actions.appendChild(nameForm);
   body.appendChild(actions);
+  body.appendChild(nameForm);
   body.appendChild(tileStatus);
   tile.appendChild(body);
   return tile;
