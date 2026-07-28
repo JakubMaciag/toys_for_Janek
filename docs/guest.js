@@ -237,7 +237,7 @@ function renderToys() {
   } else if (sortMode === 'price-desc') {
     toShow.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
   } else {
-    toShow.sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''));
+    toShow.sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
   }
 
   if (currentToys.length === 0) {
