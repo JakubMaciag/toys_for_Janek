@@ -145,16 +145,7 @@ function buildTile(toy, onReserved) {
     body.appendChild(comment);
   }
 
-  const actions = document.createElement('div');
-  actions.className = 'tile-actions';
-
-  const reserveBtn = document.createElement('button');
-  reserveBtn.type = 'button';
-  reserveBtn.textContent = 'Kupię to!';
-  actions.appendChild(reserveBtn);
-
   const nameForm = document.createElement('div');
-  nameForm.hidden = true;
   nameForm.className = 'reserve-name-form';
 
   const nameLabel = document.createElement('label');
@@ -167,38 +158,17 @@ function buildTile(toy, onReserved) {
   nameInput.maxLength = 60;
   nameLabel.appendChild(nameInput);
 
-  const nameActions = document.createElement('div');
-  nameActions.className = 'reserve-name-actions';
-
   const confirmBtn = document.createElement('button');
   confirmBtn.type = 'button';
-  confirmBtn.textContent = 'Potwierdź';
+  confirmBtn.textContent = 'Kupię to!';
 
-  const cancelBtn = document.createElement('button');
-  cancelBtn.type = 'button';
-  cancelBtn.className = 'secondary';
-  cancelBtn.textContent = 'Anuluj';
-
-  nameActions.append(confirmBtn, cancelBtn);
-  nameForm.append(nameLabel, nameActions);
+  nameForm.append(nameLabel, confirmBtn);
 
   const tileStatus = document.createElement('p');
   tileStatus.className = 'status';
 
-  reserveBtn.addEventListener('click', () => {
-    reserveBtn.hidden = true;
-    nameForm.hidden = false;
-    nameInput.focus();
-  });
-
-  cancelBtn.addEventListener('click', () => {
-    nameForm.hidden = true;
-    reserveBtn.hidden = false;
-  });
-
   confirmBtn.addEventListener('click', async () => {
     confirmBtn.disabled = true;
-    cancelBtn.disabled = true;
     tileStatus.textContent = 'Zapisywanie…';
     try {
       const session = await getGuestSession();
@@ -214,7 +184,6 @@ function buildTile(toy, onReserved) {
     }
   });
 
-  body.appendChild(actions);
   body.appendChild(nameForm);
   body.appendChild(tileStatus);
   tile.appendChild(body);

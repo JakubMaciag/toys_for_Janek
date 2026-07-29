@@ -312,11 +312,6 @@ button.danger {
   color: var(--muted);
 }
 
-.reserve-name-actions {
-  display: flex;
-  gap: 8px;
-}
-
 @media (max-width: 480px) {
   header.site-header {
     padding: 12px 16px;
