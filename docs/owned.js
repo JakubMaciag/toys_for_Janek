@@ -115,13 +115,34 @@ function buildViewTile(item, refresh) {
     body.appendChild(comment);
   }
 
-  const visibilityBadge = document.createElement('div');
-  visibilityBadge.className = 'tile-reserved-badge';
-  visibilityBadge.textContent = item.visibleToGuests ? '👁 Widoczne dla gości' : '🔒 Ukryte przed gośćmi';
-  body.appendChild(visibilityBadge);
-
   const status = document.createElement('p');
   status.className = 'status';
+
+  const visibleLabel = document.createElement('label');
+  visibleLabel.className = 'checkbox-label';
+  const visibleCheckbox = document.createElement('input');
+  visibleCheckbox.type = 'checkbox';
+  visibleCheckbox.checked = !!item.visibleToGuests;
+  visibleLabel.append(visibleCheckbox, 'Widoczne dla gości (bez ceny)');
+  visibleCheckbox.addEventListener('change', async () => {
+    const newValue = visibleCheckbox.checked;
+    visibleCheckbox.disabled = true;
+    status.textContent = 'Zapisywanie…';
+    try {
+      const session = await getValidSession();
+      await updateOwnedFields(FIREBASE_CONFIG.projectId, session.idToken, item.id, {
+        visibleToGuests: newValue,
+      });
+      item.visibleToGuests = newValue;
+      status.textContent = '';
+    } catch (err) {
+      visibleCheckbox.checked = !newValue;
+      status.textContent = 'Błąd: ' + err.message;
+    } finally {
+      visibleCheckbox.disabled = false;
+    }
+  });
+  body.appendChild(visibleLabel);
 
   const actions = document.createElement('div');
   actions.className = 'tile-actions';
@@ -132,25 +153,6 @@ function buildViewTile(item, refresh) {
   editBtn.textContent = 'Edytuj';
   editBtn.addEventListener('click', () => {
     tile.replaceWith(buildEditTile(item, refresh));
-  });
-
-  const toggleVisibleBtn = document.createElement('button');
-  toggleVisibleBtn.type = 'button';
-  toggleVisibleBtn.className = 'secondary';
-  toggleVisibleBtn.textContent = item.visibleToGuests ? 'Ukryj przed gośćmi' : 'Pokaż gościom';
-  toggleVisibleBtn.addEventListener('click', async () => {
-    toggleVisibleBtn.disabled = true;
-    status.textContent = 'Zapisywanie…';
-    try {
-      const session = await getValidSession();
-      await updateOwnedFields(FIREBASE_CONFIG.projectId, session.idToken, item.id, {
-        visibleToGuests: !item.visibleToGuests,
-      });
-      refresh();
-    } catch (err) {
-      status.textContent = 'Błąd: ' + err.message;
-      toggleVisibleBtn.disabled = false;
-    }
   });
 
   const deleteBtn = document.createElement('button');
@@ -171,7 +173,7 @@ function buildViewTile(item, refresh) {
     }
   });
 
-  actions.append(editBtn, toggleVisibleBtn, deleteBtn);
+  actions.append(editBtn, deleteBtn);
   body.appendChild(actions);
   body.appendChild(status);
   tile.appendChild(body);
@@ -293,6 +295,7 @@ function formatTotals(items) {
 }
 
 async function loadAndRenderItems() {
+  const scrollY = window.scrollY;
   loadStatus.textContent = 'Wczytywanie…';
   totalStatus.textContent = '';
   tilesEl.innerHTML = '';
@@ -306,6 +309,8 @@ async function loadAndRenderItems() {
       .forEach((item) => tilesEl.appendChild(buildViewTile(item, loadAndRenderItems)));
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  } finally {
+    window.scrollTo(0, scrollY);
   }
 }
 
