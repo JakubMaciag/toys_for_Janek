@@ -39,6 +39,10 @@ const openSiteBtn = document.getElementById('open-site-btn');
 const openAdminBtn = document.getElementById('open-admin-btn');
 const alreadyOwnedCheckbox = document.getElementById('toy-already-owned');
 const submitBtn = document.getElementById('submit-btn');
+const duplicateWarning = document.getElementById('duplicate-warning');
+const duplicateWarningText = document.getElementById('duplicate-warning-text');
+const duplicateConfirmBtn = document.getElementById('duplicate-confirm-btn');
+const duplicateCancelBtn = document.getElementById('duplicate-cancel-btn');
 
 alreadyOwnedCheckbox.addEventListener('change', () => {
   submitBtn.textContent = alreadyOwnedCheckbox.checked ? 'Dodaj do już posiadanych' : 'Dodaj do listy';
@@ -129,6 +133,7 @@ logoutBtn.addEventListener('click', async () => {
 scanBtn.addEventListener('click', async () => {
   saveStatus.textContent = '';
   openSiteBtn.hidden = true;
+  duplicateWarning.hidden = true;
   alreadyOwnedCheckbox.checked = false;
   submitBtn.textContent = 'Dodaj do listy';
   try {
@@ -162,9 +167,31 @@ function updateImagePreview() {
 
 imageInput.addEventListener('input', updateImagePreview);
 
+async function saveToy(session, toyData) {
+  const { alreadyOwned, ...fields } = toyData;
+  saveStatus.textContent = 'Zapisywanie…';
+  try {
+    if (alreadyOwned) {
+      await createOwned(FIREBASE_CONFIG.projectId, session.idToken, fields);
+      saveStatus.textContent = 'Dodano do już posiadanych!';
+    } else {
+      await createToy(FIREBASE_CONFIG.projectId, session.idToken, fields);
+      saveStatus.textContent = 'Dodano do listy!';
+    }
+    toyForm.reset();
+    toyForm.hidden = true;
+    imagePreview.hidden = true;
+    openSiteBtn.hidden = false;
+    submitBtn.textContent = 'Dodaj do listy';
+  } catch (err) {
+    saveStatus.textContent = 'Błąd zapisu: ' + err.message;
+  }
+}
+
 toyForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  saveStatus.textContent = 'Zapisywanie…';
+  saveStatus.textContent = 'Sprawdzanie duplikatów…';
+  duplicateWarning.hidden = true;
 
   const link = document.getElementById('toy-link').value.trim();
   if (!/^https?:\/\//i.test(link)) {
@@ -175,11 +202,33 @@ toyForm.addEventListener('submit', async (e) => {
   const priceRaw = document.getElementById('toy-price').value;
   const originalPriceRaw = document.getElementById('toy-original-price').value;
   const name = document.getElementById('toy-name').value.trim();
-  const price = priceRaw === '' ? null : parseFloat(priceRaw);
-  const currency = document.getElementById('toy-currency').value.trim() || 'PLN';
-  const imageUrl = document.getElementById('toy-image').value.trim() || null;
-  const adminComment = document.getElementById('toy-comment').value.trim() || null;
   const alreadyOwned = alreadyOwnedCheckbox.checked;
+
+  const toyData = alreadyOwned
+    ? {
+        alreadyOwned,
+        name,
+        price: priceRaw === '' ? null : parseFloat(priceRaw),
+        currency: document.getElementById('toy-currency').value.trim() || 'PLN',
+        imageUrl: document.getElementById('toy-image').value.trim() || null,
+        link,
+        adminComment: document.getElementById('toy-comment').value.trim() || null,
+        addedAt: new Date(),
+      }
+    : {
+        alreadyOwned,
+        name,
+        price: priceRaw === '' ? null : parseFloat(priceRaw),
+        originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
+        currency: document.getElementById('toy-currency').value.trim() || 'PLN',
+        imageUrl: document.getElementById('toy-image').value.trim() || null,
+        link,
+        adminComment: document.getElementById('toy-comment').value.trim() || null,
+        addedAt: new Date(),
+        reserved: false,
+        reservedByName: null,
+        reservedAt: null,
+      };
 
   try {
     const session = await getValidSession();
@@ -189,49 +238,28 @@ toyForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    saveStatus.textContent = 'Sprawdzanie duplikatów…';
     const existing = alreadyOwned
       ? await listOwned(FIREBASE_CONFIG.projectId, session.idToken)
       : await listToys(FIREBASE_CONFIG.projectId, session.idToken);
     const duplicate = findDuplicate(existing, name, link);
-    if (duplicate && !confirm(`Na liście jest już "${duplicate.name}" (ta sama nazwa lub link). Dodać mimo to?`)) {
+
+    if (duplicate) {
       saveStatus.textContent = '';
+      duplicateWarningText.textContent = `Na liście jest już "${duplicate.name}" (ta sama nazwa lub link). Dodać mimo to?`;
+      duplicateWarning.hidden = false;
+
+      duplicateConfirmBtn.onclick = () => {
+        duplicateWarning.hidden = true;
+        saveToy(session, toyData);
+      };
+      duplicateCancelBtn.onclick = () => {
+        duplicateWarning.hidden = true;
+        saveStatus.textContent = 'Anulowano — zabawka nie została dodana.';
+      };
       return;
     }
-    saveStatus.textContent = 'Zapisywanie…';
 
-    if (alreadyOwned) {
-      await createOwned(FIREBASE_CONFIG.projectId, session.idToken, {
-        name,
-        price,
-        currency,
-        imageUrl,
-        link,
-        adminComment,
-        addedAt: new Date(),
-      });
-      saveStatus.textContent = 'Dodano do już posiadanych!';
-    } else {
-      await createToy(FIREBASE_CONFIG.projectId, session.idToken, {
-        name,
-        price,
-        originalPrice: originalPriceRaw === '' ? null : parseFloat(originalPriceRaw),
-        currency,
-        imageUrl,
-        link,
-        adminComment,
-        addedAt: new Date(),
-        reserved: false,
-        reservedByName: null,
-        reservedAt: null,
-      });
-      saveStatus.textContent = 'Dodano do listy!';
-    }
-    toyForm.reset();
-    toyForm.hidden = true;
-    imagePreview.hidden = true;
-    openSiteBtn.hidden = false;
-    submitBtn.textContent = 'Dodaj do listy';
+    await saveToy(session, toyData);
   } catch (err) {
     saveStatus.textContent = 'Błąd zapisu: ' + err.message;
   }
