@@ -10,7 +10,10 @@
   <body>
     <header class="site-header">
       <h1>🎁 Lista zabawek dla Janka</h1>
-      <a href="admin.html" style="color: white; font-size: 13px">Panel administratora</a>
+      <div>
+        <a href="already-owned.html" style="color: white; font-size: 13px; margin-right: 12px">Co Janek już ma</a>
+        <a href="admin.html" style="color: white; font-size: 13px">Panel administratora</a>
+      </div>
     </header>
 
     <section id="gate" class="gate">
@@ -54,11 +57,6 @@
       <p id="load-status" class="status"></p>
       <div id="tiles" class="tile-grid"></div>
       <p id="empty-state" class="empty-state" hidden>Wszystkie zabawki mają już swoich kupujących! 🎉</p>
-
-      <h2>Zabawki, które Janek już ma</h2>
-      <p class="status">Żeby uniknąć duplikatów — to lista rzeczy, które Janek już dostał albo ma (bez cen).</p>
-      <div id="owned-tiles" class="tile-grid"></div>
-      <p id="owned-empty-state" class="empty-state" hidden>Jeszcze nic tu nie ma.</p>
     </main>
 
     <script type="module" src="guest.js"></script>
