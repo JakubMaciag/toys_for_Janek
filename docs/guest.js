@@ -20,6 +20,7 @@ const emptyState = document.getElementById('empty-state');
 const sortSelect = document.getElementById('sort-select');
 const priceMinInput = document.getElementById('price-min');
 const priceMaxInput = document.getElementById('price-max');
+const searchInput = document.getElementById('search-input');
 
 let currentToys = [];
 
@@ -194,9 +195,12 @@ function renderToys() {
   const min = priceMinInput.value === '' ? null : parseFloat(priceMinInput.value);
   const max = priceMaxInput.value === '' ? null : parseFloat(priceMaxInput.value);
 
+  const search = searchInput.value.trim().toLowerCase();
+
   let toShow = currentToys.filter((t) => {
     if (min !== null && (t.price === null || t.price === undefined || t.price < min)) return false;
     if (max !== null && (t.price === null || t.price === undefined || t.price > max)) return false;
+    if (search && !(t.name || '').toLowerCase().includes(search)) return false;
     return true;
   });
 
@@ -219,7 +223,7 @@ function renderToys() {
   }
   if (toShow.length === 0) {
     emptyState.hidden = false;
-    emptyState.textContent = 'Żadna zabawka nie pasuje do wybranego zakresu cen.';
+    emptyState.textContent = 'Żadna zabawka nie pasuje do wyszukiwania/filtrów.';
     return;
   }
 
@@ -246,6 +250,7 @@ async function loadAndRenderToys() {
 sortSelect.addEventListener('change', renderToys);
 priceMinInput.addEventListener('input', renderToys);
 priceMaxInput.addEventListener('input', renderToys);
+searchInput.addEventListener('input', renderToys);
 
 gateForm.addEventListener('submit', async (e) => {
   e.preventDefault();

@@ -38,6 +38,7 @@ const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 const settingsStatus = document.getElementById('settings-status');
 const settingsGuestPassword = document.getElementById('settings-guest-password');
 const filterSelect = document.getElementById('filter-select');
+const searchInput = document.getElementById('search-input');
 
 let currentToys = [];
 
@@ -370,9 +371,11 @@ function buildEditTile(toy, refresh) {
 function renderToys() {
   tilesEl.innerHTML = '';
   const filter = filterSelect.value;
+  const search = searchInput.value.trim().toLowerCase();
   const toShow = currentToys.filter((t) => {
-    if (filter === 'unreserved') return !t.reserved;
-    if (filter === 'reserved') return !!t.reserved;
+    if (filter === 'unreserved' && t.reserved) return false;
+    if (filter === 'reserved' && !t.reserved) return false;
+    if (search && !(t.name || '').toLowerCase().includes(search)) return false;
     return true;
   });
   loadStatus.textContent = `${toShow.length} / ${currentToys.length} zabawek`;
@@ -464,6 +467,7 @@ addForm.addEventListener('submit', async (e) => {
 });
 
 filterSelect.addEventListener('change', renderToys);
+searchInput.addEventListener('input', renderToys);
 
 toggleSettingsBtn.addEventListener('click', () => {
   settingsForm.hidden = !settingsForm.hidden;

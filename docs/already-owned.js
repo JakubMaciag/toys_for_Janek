@@ -13,6 +13,9 @@ const gateError = document.getElementById('gate-error');
 const content = document.getElementById('content');
 const ownedTilesEl = document.getElementById('owned-tiles');
 const ownedEmptyState = document.getElementById('owned-empty-state');
+const searchInput = document.getElementById('search-input');
+
+let currentItems = [];
 
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
@@ -83,25 +86,34 @@ function buildOwnedTile(item) {
   return tile;
 }
 
-async function loadAndRenderOwned() {
+function renderOwned() {
   ownedTilesEl.innerHTML = '';
   ownedEmptyState.hidden = true;
+  const search = searchInput.value.trim().toLowerCase();
+  const toShow = currentItems.filter((i) => !search || (i.name || '').toLowerCase().includes(search));
+  if (toShow.length === 0) {
+    ownedEmptyState.hidden = false;
+    ownedEmptyState.textContent = currentItems.length === 0 ? 'Jeszcze nic tu nie ma.' : 'Nic nie pasuje do wyszukiwania.';
+    return;
+  }
+  toShow
+    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
+    .forEach((item) => ownedTilesEl.appendChild(buildOwnedTile(item)));
+}
+
+async function loadAndRenderOwned() {
   try {
     const session = await getGuestSession();
     const items = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
-    const visible = items.filter((i) => i.visibleToGuests === true);
-    if (visible.length === 0) {
-      ownedEmptyState.hidden = false;
-      return;
-    }
-    visible
-      .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-      .forEach((item) => ownedTilesEl.appendChild(buildOwnedTile(item)));
+    currentItems = items.filter((i) => i.visibleToGuests === true);
+    renderOwned();
   } catch (err) {
     ownedEmptyState.hidden = false;
     ownedEmptyState.textContent = 'Nie udało się wczytać listy: ' + err.message;
   }
 }
+
+searchInput.addEventListener('input', renderOwned);
 
 gateForm.addEventListener('submit', async (e) => {
   e.preventDefault();

@@ -25,6 +25,9 @@ const toggleAddBtn = document.getElementById('toggle-add-btn');
 const addForm = document.getElementById('add-form');
 const cancelAddBtn = document.getElementById('cancel-add-btn');
 const addError = document.getElementById('add-error');
+const searchInput = document.getElementById('search-input');
+
+let currentItems = [];
 
 function getStoredSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -294,6 +297,19 @@ function formatTotals(items) {
   return 'Suma: ' + entries.map(([currency, sum]) => `${sum.toFixed(2)} ${currency}`).join(' + ');
 }
 
+function renderItems() {
+  const scrollY = window.scrollY;
+  tilesEl.innerHTML = '';
+  const search = searchInput.value.trim().toLowerCase();
+  const toShow = currentItems.filter((item) => !search || (item.name || '').toLowerCase().includes(search));
+  loadStatus.textContent = `${toShow.length} / ${currentItems.length} pozycji`;
+  totalStatus.textContent = formatTotals(toShow);
+  toShow
+    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
+    .forEach((item) => tilesEl.appendChild(buildViewTile(item, loadAndRenderItems)));
+  window.scrollTo(0, scrollY);
+}
+
 async function loadAndRenderItems() {
   const scrollY = window.scrollY;
   loadStatus.textContent = 'Wczytywanie…';
@@ -301,18 +317,16 @@ async function loadAndRenderItems() {
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
-    const items = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
-    loadStatus.textContent = `${items.length} pozycji`;
-    totalStatus.textContent = formatTotals(items);
-    items
-      .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-      .forEach((item) => tilesEl.appendChild(buildViewTile(item, loadAndRenderItems)));
+    currentItems = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
+    renderItems();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
   } finally {
     window.scrollTo(0, scrollY);
   }
 }
+
+searchInput.addEventListener('input', renderItems);
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
