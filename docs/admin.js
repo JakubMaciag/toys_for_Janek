@@ -11,6 +11,19 @@ import {
   setGuestPasswordHash,
 } from './firebase-rest.js';
 
+// Same-name (case/whitespace-insensitive) or same-link match against an
+// already-fetched list — used before creating a new entry to catch
+// accidental duplicates (e.g. scanning the same product page twice).
+function findDuplicate(list, name, link) {
+  const normalizedName = (name || '').trim().toLowerCase();
+  const normalizedLink = (link || '').trim().toLowerCase();
+  return list.find((item) => {
+    const itemName = (item.name || '').trim().toLowerCase();
+    const itemLink = (item.link || '').trim().toLowerCase();
+    return (normalizedLink && itemLink && itemLink === normalizedLink) || (normalizedName && itemName === normalizedName);
+  });
+}
+
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -455,6 +468,12 @@ addForm.addEventListener('submit', async (e) => {
     reservedByName: null,
     reservedAt: null,
   };
+
+  const duplicate = findDuplicate(currentToys, toy.name, toy.link);
+  if (duplicate && !confirm(`Na liście jest już "${duplicate.name}" (ta sama nazwa lub link). Dodać mimo to?`)) {
+    return;
+  }
+
   try {
     const session = await getValidSession();
     await createToy(FIREBASE_CONFIG.projectId, session.idToken, toy);

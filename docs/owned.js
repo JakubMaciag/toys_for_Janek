@@ -62,6 +62,19 @@ function showLoggedIn() {
   logoutBtn.hidden = false;
 }
 
+// Same-name (case/whitespace-insensitive) or same-link match against an
+// already-fetched list — used before creating a new entry to catch
+// accidental duplicates.
+function findDuplicate(list, name, link) {
+  const normalizedName = (name || '').trim().toLowerCase();
+  const normalizedLink = (link || '').trim().toLowerCase();
+  return list.find((item) => {
+    const itemName = (item.name || '').trim().toLowerCase();
+    const itemLink = (item.link || '').trim().toLowerCase();
+    return (normalizedLink && itemLink && itemLink === normalizedLink) || (normalizedName && itemName === normalizedName);
+  });
+}
+
 function labeledInput(labelText, inputEl) {
   const label = document.createElement('label');
   label.textContent = labelText;
@@ -382,6 +395,12 @@ addForm.addEventListener('submit', async (e) => {
     visibleToGuests: document.getElementById('add-visible-to-guests').checked,
     addedAt: new Date(),
   };
+
+  const duplicate = findDuplicate(currentItems, item.name, item.link);
+  if (duplicate && !confirm(`Na liście jest już "${duplicate.name}" (ta sama nazwa lub link). Dodać mimo to?`)) {
+    return;
+  }
+
   try {
     const session = await getValidSession();
     await createOwned(FIREBASE_CONFIG.projectId, session.idToken, item);

@@ -3,9 +3,25 @@ import {
   signInWithPassword,
   ensureFreshSession,
   decodeIdTokenClaims,
+  listToys,
+  listOwned,
   createToy,
   createOwned,
 } from './firebase-rest.js';
+
+// Same-name (case/whitespace-insensitive) or same-link match — used before
+// creating a new entry to catch accidental duplicates (e.g. scanning the
+// same product page twice). The popup doesn't keep a cached list like the
+// admin pages do, so the caller fetches fresh right before checking.
+function findDuplicate(list, name, link) {
+  const normalizedName = (name || '').trim().toLowerCase();
+  const normalizedLink = (link || '').trim().toLowerCase();
+  return list.find((item) => {
+    const itemName = (item.name || '').trim().toLowerCase();
+    const itemLink = (item.link || '').trim().toLowerCase();
+    return (normalizedLink && itemLink && itemLink === normalizedLink) || (normalizedName && itemName === normalizedName);
+  });
+}
 
 const STORAGE_KEY = 'toysForJanek.session';
 
@@ -172,6 +188,18 @@ toyForm.addEventListener('submit', async (e) => {
       showLoggedOut();
       return;
     }
+
+    saveStatus.textContent = 'Sprawdzanie duplikatów…';
+    const existing = alreadyOwned
+      ? await listOwned(FIREBASE_CONFIG.projectId, session.idToken)
+      : await listToys(FIREBASE_CONFIG.projectId, session.idToken);
+    const duplicate = findDuplicate(existing, name, link);
+    if (duplicate && !confirm(`Na liście jest już "${duplicate.name}" (ta sama nazwa lub link). Dodać mimo to?`)) {
+      saveStatus.textContent = '';
+      return;
+    }
+    saveStatus.textContent = 'Zapisywanie…';
+
     if (alreadyOwned) {
       await createOwned(FIREBASE_CONFIG.projectId, session.idToken, {
         name,
