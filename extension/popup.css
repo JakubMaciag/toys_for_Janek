@@ -129,6 +129,10 @@ button:hover {
   background: #fff6f6;
 }
 
+#duplicate-warning[hidden] {
+  display: none;
+}
+
 #duplicate-warning-text {
   margin: 0;
 }
