@@ -19,6 +19,7 @@ const logoutBtn = document.getElementById('logout-btn');
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
 const loadStatus = document.getElementById('load-status');
+const totalStatus = document.getElementById('total-status');
 const tilesEl = document.getElementById('tiles');
 const toggleAddBtn = document.getElementById('toggle-add-btn');
 const addForm = document.getElementById('add-form');
@@ -246,13 +247,27 @@ function buildEditTile(item, refresh) {
   return tile;
 }
 
+function formatTotals(items) {
+  const totals = {};
+  for (const item of items) {
+    if (item.price === null || item.price === undefined) continue;
+    const currency = item.currency || 'PLN';
+    totals[currency] = (totals[currency] || 0) + item.price;
+  }
+  const entries = Object.entries(totals);
+  if (entries.length === 0) return 'Suma: 0.00 PLN';
+  return 'Suma: ' + entries.map(([currency, sum]) => `${sum.toFixed(2)} ${currency}`).join(' + ');
+}
+
 async function loadAndRenderItems() {
   loadStatus.textContent = 'Wczytywanie…';
+  totalStatus.textContent = '';
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
     const items = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
     loadStatus.textContent = `${items.length} pozycji`;
+    totalStatus.textContent = formatTotals(items);
     items
       .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
       .forEach((item) => tilesEl.appendChild(buildViewTile(item, loadAndRenderItems)));
