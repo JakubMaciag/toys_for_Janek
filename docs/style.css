@@ -243,6 +243,16 @@ button.danger {
   font-weight: 600;
 }
 
+.admin-form .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-form .checkbox-label input {
+  width: auto;
+}
+
 .admin-form .form-actions {
   grid-column: 1 / -1;
   display: flex;

@@ -115,6 +115,11 @@ function buildViewTile(item, refresh) {
     body.appendChild(comment);
   }
 
+  const visibilityBadge = document.createElement('div');
+  visibilityBadge.className = 'tile-reserved-badge';
+  visibilityBadge.textContent = item.visibleToGuests ? '👁 Widoczne dla gości' : '🔒 Ukryte przed gośćmi';
+  body.appendChild(visibilityBadge);
+
   const status = document.createElement('p');
   status.className = 'status';
 
@@ -127,6 +132,25 @@ function buildViewTile(item, refresh) {
   editBtn.textContent = 'Edytuj';
   editBtn.addEventListener('click', () => {
     tile.replaceWith(buildEditTile(item, refresh));
+  });
+
+  const toggleVisibleBtn = document.createElement('button');
+  toggleVisibleBtn.type = 'button';
+  toggleVisibleBtn.className = 'secondary';
+  toggleVisibleBtn.textContent = item.visibleToGuests ? 'Ukryj przed gośćmi' : 'Pokaż gościom';
+  toggleVisibleBtn.addEventListener('click', async () => {
+    toggleVisibleBtn.disabled = true;
+    status.textContent = 'Zapisywanie…';
+    try {
+      const session = await getValidSession();
+      await updateOwnedFields(FIREBASE_CONFIG.projectId, session.idToken, item.id, {
+        visibleToGuests: !item.visibleToGuests,
+      });
+      refresh();
+    } catch (err) {
+      status.textContent = 'Błąd: ' + err.message;
+      toggleVisibleBtn.disabled = false;
+    }
   });
 
   const deleteBtn = document.createElement('button');
@@ -147,7 +171,7 @@ function buildViewTile(item, refresh) {
     }
   });
 
-  actions.append(editBtn, deleteBtn);
+  actions.append(editBtn, toggleVisibleBtn, deleteBtn);
   body.appendChild(actions);
   body.appendChild(status);
   tile.appendChild(body);
@@ -194,13 +218,21 @@ function buildEditTile(item, refresh) {
   commentInput.maxLength = 300;
   commentInput.value = item.adminComment || '';
 
+  const visibleInput = document.createElement('input');
+  visibleInput.type = 'checkbox';
+  visibleInput.checked = !!item.visibleToGuests;
+  const visibleLabel = labeledInput('', visibleInput);
+  visibleLabel.className = 'checkbox-label';
+  visibleLabel.append('Widoczne dla gości (bez ceny)');
+
   form.append(
     labeledInput('Nazwa', nameInput),
     labeledInput('Cena', priceInput),
     labeledInput('Waluta', currencyInput),
     labeledInput('Zdjęcie (URL)', imageInput),
     labeledInput('Link (opcjonalnie)', linkInput),
-    labeledInput('Komentarz (opcjonalnie)', commentInput)
+    labeledInput('Komentarz (opcjonalnie)', commentInput),
+    visibleLabel
   );
 
   const actions = document.createElement('div');
@@ -236,6 +268,7 @@ function buildEditTile(item, refresh) {
         imageUrl: imageInput.value.trim() || null,
         link: link || null,
         adminComment: commentInput.value.trim() || null,
+        visibleToGuests: visibleInput.checked,
       });
       refresh();
     } catch (err) {
@@ -327,6 +360,7 @@ addForm.addEventListener('submit', async (e) => {
     imageUrl: document.getElementById('add-image').value.trim() || null,
     link: link || null,
     adminComment: document.getElementById('add-comment').value.trim() || null,
+    visibleToGuests: document.getElementById('add-visible-to-guests').checked,
     addedAt: new Date(),
   };
   try {

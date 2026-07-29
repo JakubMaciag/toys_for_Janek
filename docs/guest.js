@@ -3,6 +3,7 @@ import {
   signInAnonymously,
   ensureFreshSession,
   listToys,
+  listOwned,
   updateToyFields,
   getGuestPasswordHash,
 } from './firebase-rest.js';
@@ -20,6 +21,8 @@ const emptyState = document.getElementById('empty-state');
 const sortSelect = document.getElementById('sort-select');
 const priceMinInput = document.getElementById('price-min');
 const priceMaxInput = document.getElementById('price-max');
+const ownedTilesEl = document.getElementById('owned-tiles');
+const ownedEmptyState = document.getElementById('owned-empty-state');
 
 let currentToys = [];
 
@@ -274,6 +277,66 @@ async function loadAndRenderToys() {
   }
 }
 
+function buildOwnedTile(item) {
+  const tile = document.createElement('article');
+  tile.className = 'tile';
+
+  if (item.imageUrl) {
+    const img = document.createElement('img');
+    img.src = item.imageUrl;
+    img.alt = '';
+    tile.appendChild(img);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'tile-body';
+
+  const name = document.createElement('div');
+  name.className = 'tile-name';
+  name.textContent = item.name || '(bez nazwy)';
+  body.appendChild(name);
+
+  if (item.link && /^https?:\/\//i.test(item.link)) {
+    const link = document.createElement('a');
+    link.className = 'tile-link';
+    link.href = item.link;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Zobacz w sklepie ↗';
+    body.appendChild(link);
+  }
+
+  if (item.adminComment) {
+    const comment = document.createElement('div');
+    comment.className = 'tile-comment';
+    comment.textContent = item.adminComment;
+    body.appendChild(comment);
+  }
+
+  tile.appendChild(body);
+  return tile;
+}
+
+async function loadAndRenderOwned() {
+  ownedTilesEl.innerHTML = '';
+  ownedEmptyState.hidden = true;
+  try {
+    const session = await getGuestSession();
+    const items = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
+    const visible = items.filter((i) => i.visibleToGuests === true);
+    if (visible.length === 0) {
+      ownedEmptyState.hidden = false;
+      return;
+    }
+    visible
+      .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
+      .forEach((item) => ownedTilesEl.appendChild(buildOwnedTile(item)));
+  } catch (err) {
+    ownedEmptyState.hidden = false;
+    ownedEmptyState.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  }
+}
+
 sortSelect.addEventListener('change', renderToys);
 priceMinInput.addEventListener('input', renderToys);
 priceMaxInput.addEventListener('input', renderToys);
@@ -299,6 +362,7 @@ gateForm.addEventListener('submit', async (e) => {
     gate.hidden = true;
     content.hidden = false;
     loadAndRenderToys();
+    loadAndRenderOwned();
   } catch (err) {
     gateError.textContent = 'Błąd sprawdzania hasła: ' + err.message;
   } finally {
@@ -310,4 +374,5 @@ if (localStorage.getItem(GATE_OK_KEY) === '1') {
   gate.hidden = true;
   content.hidden = false;
   loadAndRenderToys();
+  loadAndRenderOwned();
 }

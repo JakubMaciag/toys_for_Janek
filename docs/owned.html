@@ -35,8 +35,9 @@
 
       <section id="admin-view" hidden>
         <p class="status">
-          Osobny rejestr zabawek, które Janek już ma / dostał — niepowiązany z listą życzeń dla
-          gości. Nikt poza administratorem tego nie widzi.
+          Osobny rejestr zabawek, które Janek już ma / dostał — niepowiązany z listą życzeń.
+          Widoczny też dla gości na stronie głównej (bez cen i bez sumy), żeby uniknąć duplikatów
+          prezentów. Ceny i edycja/dodawanie są dostępne tylko tutaj, w panelu admina.
         </p>
         <div class="admin-toolbar">
           <button id="toggle-add-btn" type="button">+ Dodaj</button>
@@ -51,6 +52,10 @@
           <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
           <label>Link (opcjonalnie)<input type="url" id="add-link" maxlength="2000" /></label>
           <label>Komentarz (opcjonalnie)<input type="text" id="add-comment" maxlength="300" /></label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="add-visible-to-guests" />
+            Widoczne dla gości (bez ceny)
+          </label>
           <div class="form-actions">
             <button type="submit">Zapisz</button>
             <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>

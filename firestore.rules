@@ -48,12 +48,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Separate, admin-only record of toys Janek already has/already bought —
-    // unrelated to the guest wishlist/reservation flow above. Never exposed
-    // to guests: both read and write require isAdmin().
+    // Separate record of toys Janek already has/already bought — unrelated to
+    // the guest wishlist/reservation flow above. Writes are admin-only; reads
+    // are open to any signed-in user (guests included, same as `toys`) so the
+    // guest page can show "Janek already has this" to avoid duplicate gifts.
+    // NOTE: Firestore rules gate whole documents, not individual fields, and
+    // can't cheaply condition a `list` query on `visibleToGuests` without a
+    // matching `where` clause (which would need runQuery instead of the plain
+    // GET this app uses everywhere else) — so this rule does NOT enforce
+    // visibleToGuests or hide price server-side. The guest UI just filters to
+    // visibleToGuests == true and never renders price, same cosmetic-only
+    // pattern as reservedByName/the guest password elsewhere in this app.
     match /ownedToys/{itemId} {
       function hasOnlyOwnedFields(data) {
-        return data.keys().hasOnly(['name', 'price', 'currency', 'link', 'imageUrl', 'adminComment', 'addedAt']);
+        return data.keys().hasOnly(['name', 'price', 'currency', 'link', 'imageUrl', 'adminComment', 'visibleToGuests', 'addedAt']);
       }
 
       function isValidOwnedShape(data) {
@@ -64,10 +72,11 @@ service cloud.firestore {
           && data.currency is string && data.currency.size() <= 10
           && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
           && (!('adminComment' in data) || data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
+          && (!('visibleToGuests' in data) || data.visibleToGuests is bool)
           && data.addedAt is timestamp;
       }
 
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
       allow create, update: if isAdmin() && isValidOwnedShape(request.resource.data);
       allow delete: if isAdmin();
     }
