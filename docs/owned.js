@@ -82,9 +82,15 @@ function labeledInput(labelText, inputEl) {
   return label;
 }
 
+// Coerces to a number defensively: a doc with price stored as something
+// other than a number (e.g. hand-edited in the Firestore console) used to
+// throw here and silently kill rendering of every item after it in the
+// list, since a forEach loop doesn't recover from a per-item exception.
 function formatPrice(item) {
   if (item.price === null || item.price === undefined) return '';
-  return `${item.price.toFixed(2)} ${item.currency || ''}`.trim();
+  const num = typeof item.price === 'number' ? item.price : parseFloat(item.price);
+  if (!Number.isFinite(num)) return '';
+  return `${num.toFixed(2)} ${item.currency || ''}`.trim();
 }
 
 function buildViewTile(item, refresh) {
@@ -302,8 +308,10 @@ function formatTotals(items) {
   const totals = {};
   for (const item of items) {
     if (item.price === null || item.price === undefined) continue;
+    const num = typeof item.price === 'number' ? item.price : parseFloat(item.price);
+    if (!Number.isFinite(num)) continue;
     const currency = item.currency || 'PLN';
-    totals[currency] = (totals[currency] || 0) + item.price;
+    totals[currency] = (totals[currency] || 0) + num;
   }
   const entries = Object.entries(totals);
   if (entries.length === 0) return 'Suma: 0.00 PLN';
@@ -319,7 +327,13 @@ function renderItems() {
   totalStatus.textContent = formatTotals(toShow);
   toShow
     .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-    .forEach((item) => tilesEl.appendChild(buildViewTile(item, loadAndRenderItems)));
+    .forEach((item) => {
+      try {
+        tilesEl.appendChild(buildViewTile(item, loadAndRenderItems));
+      } catch (err) {
+        console.error('Nie udało się wyświetlić pozycji (pominięto):', item, err);
+      }
+    });
   window.scrollTo(0, scrollY);
 }
 

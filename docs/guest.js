@@ -79,14 +79,26 @@ async function getGuestSession() {
   return session;
 }
 
+// Coerces to a number defensively: a doc with price stored as something
+// other than a number (e.g. hand-edited in the Firestore console) used to
+// throw here and silently kill rendering of every item after it in the
+// list, since a forEach loop doesn't recover from a per-item exception.
+function toFiniteNumber(value) {
+  if (value === null || value === undefined) return null;
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 function formatPrice(toy) {
-  if (toy.price === null || toy.price === undefined) return null;
-  return `${toy.price.toFixed(2)} ${toy.currency || ''}`.trim();
+  const num = toFiniteNumber(toy.price);
+  if (num === null) return null;
+  return `${num.toFixed(2)} ${toy.currency || ''}`.trim();
 }
 
 function buildPriceElement(toy) {
   const price = formatPrice(toy);
-  const hasOriginal = toy.originalPrice !== null && toy.originalPrice !== undefined;
+  const originalNum = toFiniteNumber(toy.originalPrice);
+  const hasOriginal = originalNum !== null;
   if (!price && !hasOriginal) return null;
 
   const wrap = document.createElement('div');
@@ -95,7 +107,7 @@ function buildPriceElement(toy) {
   if (hasOriginal) {
     const was = document.createElement('span');
     was.className = 'tile-price-original';
-    was.textContent = `${toy.originalPrice.toFixed(2)} ${toy.currency || ''}`.trim();
+    was.textContent = `${originalNum.toFixed(2)} ${toy.currency || ''}`.trim();
     wrap.appendChild(was);
   }
 
@@ -227,7 +239,13 @@ function appendGroup(title, items) {
   heading.className = 'tile-grid-heading';
   heading.textContent = title;
   tilesEl.appendChild(heading);
-  items.forEach((toy) => tilesEl.appendChild(buildTile(toy, loadAndRenderToys)));
+  items.forEach((toy) => {
+    try {
+      tilesEl.appendChild(buildTile(toy, loadAndRenderToys));
+    } catch (err) {
+      console.error('Nie udało się wyświetlić zabawki (pominięto):', toy, err);
+    }
+  });
 }
 
 function renderToys() {
