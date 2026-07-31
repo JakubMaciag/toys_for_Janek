@@ -165,6 +165,11 @@ button.danger {
   margin: 0 0 6px;
 }
 
+#category-tree-items {
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
 .category-tree-item {
   display: flex;
   justify-content: space-between;
