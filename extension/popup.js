@@ -5,6 +5,7 @@ import {
   decodeIdTokenClaims,
   listToys,
   listOwned,
+  listCategories,
   createToy,
   createOwned,
 } from './firebase-rest.js';
@@ -44,6 +45,8 @@ const duplicateWarningText = document.getElementById('duplicate-warning-text');
 const duplicateConfirmBtn = document.getElementById('duplicate-confirm-btn');
 const duplicateCancelBtn = document.getElementById('duplicate-cancel-btn');
 const ageCategorySelect = document.getElementById('toy-age-category');
+const categorySelect = document.getElementById('toy-category');
+const availableNowCheckbox = document.getElementById('toy-available-now');
 
 // Same order/list as docs/admin.js — kept in sync manually.
 const AGE_CATEGORIES = [
@@ -99,6 +102,23 @@ function showLoggedIn() {
   logoutBtn.hidden = false;
 }
 
+async function populateCategoryOptions(session) {
+  try {
+    const categories = await listCategories(FIREBASE_CONFIG.projectId, session.idToken);
+    categorySelect.innerHTML = '<option value="">Bez kategorii</option>';
+    categories
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((cat) => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        categorySelect.appendChild(opt);
+      });
+  } catch {
+    // Non-fatal — the toy can still be saved without a category assigned.
+  }
+}
+
 // Returns a fresh session (refreshing the token if needed) or null, and
 // persists any refreshed token back to storage.
 async function getValidSession() {
@@ -114,6 +134,7 @@ async function init() {
     const session = await getValidSession();
     if (session) {
       showLoggedIn();
+      populateCategoryOptions(session);
     } else {
       showLoggedOut();
     }
@@ -138,6 +159,7 @@ loginForm.addEventListener('submit', async (e) => {
     }
     await storeSession(session);
     showLoggedIn();
+    populateCategoryOptions(session);
   } catch (err) {
     loginError.textContent = 'Błąd logowania: ' + err.message;
   }
@@ -155,6 +177,8 @@ scanBtn.addEventListener('click', async () => {
   duplicateWarning.hidden = true;
   alreadyOwnedCheckbox.checked = false;
   ageCategorySelect.value = '';
+  categorySelect.value = '';
+  availableNowCheckbox.checked = true;
   submitBtn.textContent = 'Dodaj do listy';
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -233,6 +257,7 @@ toyForm.addEventListener('submit', async (e) => {
         imageUrl: document.getElementById('toy-image').value.trim() || null,
         link,
         adminComment: document.getElementById('toy-comment').value.trim() || null,
+        categoryId: categorySelect.value || null,
         addedAt: new Date(),
       }
     : {
@@ -245,6 +270,8 @@ toyForm.addEventListener('submit', async (e) => {
         link,
         adminComment: document.getElementById('toy-comment').value.trim() || null,
         ageCategory: ageCategorySelect.value || null,
+        categoryId: categorySelect.value || null,
+        availableNow: availableNowCheckbox.checked,
         addedAt: new Date(),
         reserved: false,
         reservedByName: null,

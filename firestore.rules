@@ -8,7 +8,8 @@ service cloud.firestore {
     match /toys/{toyId} {
       function hasOnlyToyFields(data) {
         return data.keys().hasOnly([
-          'name', 'price', 'originalPrice', 'currency', 'link', 'imageUrl', 'adminComment', 'ageCategory',
+          'name', 'price', 'originalPrice', 'currency', 'link', 'imageUrl', 'adminComment',
+          'ageCategory', 'categoryId', 'availableNow',
           'addedAt', 'reserved', 'reservedByName', 'reservedAt'
         ]);
       }
@@ -30,6 +31,8 @@ service cloud.firestore {
           && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
           && (!('adminComment' in data) || data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
           && (!('ageCategory' in data) || data.ageCategory == null || (data.ageCategory is string && isValidAgeCategory(data.ageCategory)))
+          && (!('categoryId' in data) || data.categoryId == null || (data.categoryId is string && data.categoryId.size() <= 200))
+          && (!('availableNow' in data) || data.availableNow is bool)
           && data.addedAt is timestamp
           && data.reserved is bool
           && (data.reservedByName == null || (data.reservedByName is string && data.reservedByName.size() <= 60))
@@ -69,7 +72,7 @@ service cloud.firestore {
     // pattern as reservedByName/the guest password elsewhere in this app.
     match /ownedToys/{itemId} {
       function hasOnlyOwnedFields(data) {
-        return data.keys().hasOnly(['name', 'price', 'currency', 'link', 'imageUrl', 'adminComment', 'visibleToGuests', 'addedAt']);
+        return data.keys().hasOnly(['name', 'price', 'currency', 'link', 'imageUrl', 'adminComment', 'visibleToGuests', 'categoryId', 'addedAt']);
       }
 
       function isValidOwnedShape(data) {
@@ -81,6 +84,7 @@ service cloud.firestore {
           && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
           && (!('adminComment' in data) || data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
           && (!('visibleToGuests' in data) || data.visibleToGuests is bool)
+          && (!('categoryId' in data) || data.categoryId == null || (data.categoryId is string && data.categoryId.size() <= 200))
           && data.addedAt is timestamp;
       }
 
@@ -89,28 +93,36 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Holds two admin-configured, publicly-readable settings docs:
-    //   - "guestGate" { passwordSha256 } — the guest-page password hash, so
-    //     it lives in Firestore instead of the git repo (cosmetic deterrent
-    //     only, see SETUP.md — moving it here stops it sitting in git
-    //     history and lets the admin rotate it without a commit+push).
-    //   - "settings" { currentAgeCategory } — which age-category toys are
-    //     currently appropriate for Janek, used to split the guest wishlist
-    //     into "buy now" vs "buy later" sections.
-    // Both public-readable on purpose (guest page needs them before/without
-    // a real login), admin-only writable.
+    // Freeform product categories (e.g. "Samochody", "Książki") shared by
+    // both `toys` and `ownedToys` — admin creates/renames/deletes them here;
+    // `toys.categoryId`/`ownedToys.categoryId` just reference the doc ID (a
+    // dangling reference after a delete is handled client-side as
+    // "uncategorized", not treated as an error).
+    match /categories/{categoryId} {
+      function isValidCategoryShape(data) {
+        return data.keys().hasOnly(['name'])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 60;
+      }
+
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() && isValidCategoryShape(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Holds the guest-page password hash (doc id "guestGate", field
+    // "passwordSha256") so it lives in Firestore instead of the git repo.
+    // Publicly readable on purpose: the guest page must be able to check it
+    // BEFORE the visitor has signed in (even anonymously). This is still
+    // only a cosmetic deterrent (see SETUP.md) — moving it out of the repo
+    // stops it from sitting in git history / public source browsing and
+    // lets the admin rotate it without a commit+push, but anyone querying
+    // this Firestore REST endpoint directly can already read the hash.
     match /appConfig/{doc} {
       allow read: if true;
-      allow write: if isAdmin() && (
-        (doc == 'guestGate'
-          && request.resource.data.keys().hasOnly(['passwordSha256'])
-          && request.resource.data.passwordSha256 is string
-          && request.resource.data.passwordSha256.size() == 64)
-        ||
-        (doc == 'settings'
-          && request.resource.data.keys().hasOnly(['currentAgeCategory'])
-          && request.resource.data.currentAgeCategory is string)
-      );
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['passwordSha256'])
+        && request.resource.data.passwordSha256 is string
+        && request.resource.data.passwordSha256.size() == 64;
     }
 
     match /{document=**} {

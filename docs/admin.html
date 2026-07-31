@@ -39,72 +39,85 @@
       </section>
 
       <section id="admin-view" hidden>
-        <div class="admin-toolbar">
-          <button id="toggle-add-btn" type="button">+ Dodaj zabawkę</button>
-          <button id="toggle-settings-btn" type="button" class="secondary">⚙️ Ustawienia</button>
-          <label class="filter-label">
-            Pokaż
-            <select id="filter-select">
-              <option value="all">Wszystkie</option>
-              <option value="unreserved">Tylko niezarezerwowane</option>
-              <option value="reserved">Tylko zarezerwowane</option>
-            </select>
-          </label>
-          <label class="filter-label">
-            Szukaj
-            <input type="search" id="search-input" placeholder="Nazwa zabawki…" />
-          </label>
-          <p id="load-status" class="status"></p>
-        </div>
+        <div class="page-layout">
+          <nav id="category-tree" class="category-tree">
+            <p class="category-tree-heading">Kategorie</p>
+            <div id="category-tree-items"></div>
+            <form id="category-add-form" class="category-tree-manage">
+              <input type="text" id="category-add-name" placeholder="Nowa kategoria…" maxlength="60" />
+              <button type="submit">+</button>
+            </form>
+            <p id="category-status" class="status"></p>
+          </nav>
 
-        <div id="settings-panel" hidden>
-          <form id="settings-form" class="admin-form">
-            <label>
-              Nowe hasło dla gości
-              <input type="password" id="settings-guest-password" placeholder="np. mikolaj2026" minlength="4" />
-            </label>
-            <div class="form-actions">
-              <button type="submit">Zapisz hasło</button>
+          <div class="page-main">
+            <div class="admin-toolbar">
+              <button id="toggle-add-btn" type="button">+ Dodaj zabawkę</button>
+              <button id="toggle-settings-btn" type="button" class="secondary">⚙️ Ustawienia</button>
+              <label class="filter-label">
+                Pokaż
+                <select id="filter-select">
+                  <option value="all">Wszystkie</option>
+                  <option value="unreserved">Tylko niezarezerwowane</option>
+                  <option value="reserved">Tylko zarezerwowane</option>
+                </select>
+              </label>
+              <label class="filter-label">
+                Szukaj
+                <input type="search" id="search-input" placeholder="Nazwa zabawki…" />
+              </label>
+              <p id="load-status" class="status"></p>
             </div>
-            <p id="settings-status" class="status"></p>
-          </form>
 
-          <form id="age-settings-form" class="admin-form">
-            <label>
-              Obecny próg wiekowy Janka (zabawki z wyższą kategorią trafiają do "Na przyszłość")
-              <select id="settings-age-category"></select>
-            </label>
-            <div class="form-actions">
-              <button type="submit">Zapisz próg wieku</button>
+            <div id="settings-panel" hidden>
+              <form id="settings-form" class="admin-form">
+                <label>
+                  Nowe hasło dla gości
+                  <input type="password" id="settings-guest-password" placeholder="np. mikolaj2026" minlength="4" />
+                </label>
+                <div class="form-actions">
+                  <button type="submit">Zapisz hasło</button>
+                </div>
+                <p id="settings-status" class="status"></p>
+              </form>
+
+              <button type="button" id="cancel-settings-btn" class="secondary">Zamknij ustawienia</button>
             </div>
-            <p id="age-settings-status" class="status"></p>
-          </form>
 
-          <button type="button" id="cancel-settings-btn" class="secondary">Zamknij ustawienia</button>
-        </div>
+            <form id="add-form" class="admin-form" hidden>
+              <label>Nazwa<input type="text" id="add-name" required maxlength="200" /></label>
+              <label>Cena<input type="number" id="add-price" min="0" step="0.01" /></label>
+              <label>Cena przed promocją (opcjonalnie)<input type="number" id="add-original-price" min="0" step="0.01" /></label>
+              <label>Waluta<input type="text" id="add-currency" maxlength="10" value="PLN" /></label>
+              <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
+              <label>Link do sklepu<input type="url" id="add-link" required maxlength="2000" /></label>
+              <label>Komentarz administratora (opcjonalnie)<input type="text" id="add-comment" maxlength="300" /></label>
+              <label>
+                Kategoria wiekowa (opcjonalnie)
+                <select id="add-age-category">
+                  <option value="">Brak (dla każdego wieku)</option>
+                </select>
+              </label>
+              <label>
+                Kategoria produktu (opcjonalnie)
+                <select id="add-category">
+                  <option value="">Bez kategorii</option>
+                </select>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="add-available-now" checked />
+                Można kupować teraz
+              </label>
+              <div class="form-actions">
+                <button type="submit">Zapisz nową zabawkę</button>
+                <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>
+              </div>
+            </form>
+            <p id="add-error" class="error" role="alert"></p>
 
-        <form id="add-form" class="admin-form" hidden>
-          <label>Nazwa<input type="text" id="add-name" required maxlength="200" /></label>
-          <label>Cena<input type="number" id="add-price" min="0" step="0.01" /></label>
-          <label>Cena przed promocją (opcjonalnie)<input type="number" id="add-original-price" min="0" step="0.01" /></label>
-          <label>Waluta<input type="text" id="add-currency" maxlength="10" value="PLN" /></label>
-          <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
-          <label>Link do sklepu<input type="url" id="add-link" required maxlength="2000" /></label>
-          <label>Komentarz administratora (opcjonalnie)<input type="text" id="add-comment" maxlength="300" /></label>
-          <label>
-            Kategoria wiekowa (opcjonalnie)
-            <select id="add-age-category">
-              <option value="">Brak (dla każdego wieku)</option>
-            </select>
-          </label>
-          <div class="form-actions">
-            <button type="submit">Zapisz nową zabawkę</button>
-            <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>
+            <div id="tiles" class="tile-grid"></div>
           </div>
-        </form>
-        <p id="add-error" class="error" role="alert"></p>
-
-        <div id="tiles" class="tile-grid"></div>
+        </div>
       </section>
     </main>
 

@@ -3,23 +3,10 @@ import {
   signInAnonymously,
   ensureFreshSession,
   listToys,
+  listCategories,
   updateToyFields,
   getGuestPasswordHash,
-  getCurrentAgeCategory,
 } from './firebase-rest.js';
-
-// Same order/list as admin.js — kept in sync manually (no shared module
-// system between pages in this project).
-const AGE_CATEGORIES = [
-  '0-6 miesięcy',
-  '6-12 miesięcy',
-  '1-2 lata',
-  '2-3 lata',
-  '3-4 lata',
-  '4-5 lat',
-  '5-6 lat',
-  '6+ lat',
-];
 
 const GATE_OK_KEY = 'toysForJanek.gateOk';
 const SESSION_KEY = 'toysForJanek.guestSession';
@@ -35,19 +22,16 @@ const sortSelect = document.getElementById('sort-select');
 const priceMinInput = document.getElementById('price-min');
 const priceMaxInput = document.getElementById('price-max');
 const searchInput = document.getElementById('search-input');
+const categoryTreeItemsEl = document.getElementById('category-tree-items');
 
 let currentToys = [];
-let currentAgeCategory = null;
+let currentCategories = [];
+let selectedCategoryId = ''; // '' = all, '__none__' = uncategorized, else a category id
 
-function categoryIndex(cat) {
-  return cat ? AGE_CATEGORIES.indexOf(cat) : -1;
-}
-
-function isFutureToy(toy) {
-  const idx = categoryIndex(toy.ageCategory);
-  if (idx === -1) return false;
-  const thresholdIndex = currentAgeCategory ? AGE_CATEGORIES.indexOf(currentAgeCategory) : AGE_CATEGORIES.length - 1;
-  return idx > thresholdIndex;
+function categoryName(categoryId) {
+  if (!categoryId) return null;
+  const cat = currentCategories.find((c) => c.id === categoryId);
+  return cat ? cat.name : null;
 }
 
 async function sha256Hex(text) {
@@ -181,6 +165,14 @@ function buildTile(toy, onReserved) {
     body.appendChild(comment);
   }
 
+  const catName = categoryName(toy.categoryId);
+  if (catName) {
+    const catBadge = document.createElement('div');
+    catBadge.className = 'tile-category-badge';
+    catBadge.textContent = `🏷️ ${catName}`;
+    body.appendChild(catBadge);
+  }
+
   if (toy.ageCategory) {
     const ageBadge = document.createElement('div');
     ageBadge.className = 'tile-age-badge';
@@ -248,6 +240,49 @@ function appendGroup(title, items) {
   });
 }
 
+function buildCategoryButton(id, name, count, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'category-tree-item' + (isActive ? ' active' : '');
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  const countSpan = document.createElement('span');
+  countSpan.className = 'category-tree-count';
+  countSpan.textContent = count;
+  btn.append(nameSpan, countSpan);
+  btn.addEventListener('click', () => {
+    selectedCategoryId = id;
+    renderToys();
+  });
+  return btn;
+}
+
+function renderCategoryTree(baseItems) {
+  const counts = {};
+  let uncategorized = 0;
+  baseItems.forEach((t) => {
+    if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] || 0) + 1;
+    else uncategorized += 1;
+  });
+
+  categoryTreeItemsEl.innerHTML = '';
+  categoryTreeItemsEl.appendChild(buildCategoryButton('', 'Wszystkie', baseItems.length, selectedCategoryId === ''));
+
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      categoryTreeItemsEl.appendChild(
+        buildCategoryButton(cat.id, cat.name, counts[cat.id] || 0, selectedCategoryId === cat.id)
+      );
+    });
+
+  if (uncategorized > 0) {
+    categoryTreeItemsEl.appendChild(
+      buildCategoryButton('__none__', 'Bez kategorii', uncategorized, selectedCategoryId === '__none__')
+    );
+  }
+}
+
 function renderToys() {
   tilesEl.innerHTML = '';
   emptyState.hidden = true;
@@ -257,10 +292,18 @@ function renderToys() {
 
   const search = searchInput.value.trim().toLowerCase();
 
-  let toShow = currentToys.filter((t) => {
+  const preCategory = currentToys.filter((t) => {
     if (min !== null && (t.price === null || t.price === undefined || t.price < min)) return false;
     if (max !== null && (t.price === null || t.price === undefined || t.price > max)) return false;
     if (search && !(t.name || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  renderCategoryTree(preCategory);
+
+  let toShow = preCategory.filter((t) => {
+    if (selectedCategoryId === '__none__') return !t.categoryId;
+    if (selectedCategoryId) return t.categoryId === selectedCategoryId;
     return true;
   });
 
@@ -287,8 +330,8 @@ function renderToys() {
     return;
   }
 
-  const nowItems = toShow.filter((t) => !isFutureToy(t));
-  const futureItems = toShow.filter((t) => isFutureToy(t));
+  const nowItems = toShow.filter((t) => t.availableNow !== false);
+  const futureItems = toShow.filter((t) => t.availableNow === false);
 
   appendGroup('✅ Można kupować teraz', nowItems);
   appendGroup('🔜 Na przyszłość (Janek jeszcze za mały)', futureItems);
@@ -300,12 +343,12 @@ async function loadAndRenderToys() {
   emptyState.hidden = true;
   try {
     const session = await getGuestSession();
-    const [toys, ageCategory] = await Promise.all([
+    const [toys, categories] = await Promise.all([
       listToys(FIREBASE_CONFIG.projectId, session.idToken),
-      getCurrentAgeCategory(FIREBASE_CONFIG.projectId),
+      listCategories(FIREBASE_CONFIG.projectId, session.idToken),
     ]);
     currentToys = toys.filter((t) => !t.reserved);
-    currentAgeCategory = ageCategory;
+    currentCategories = categories;
     loadStatus.textContent = '';
     renderToys();
   } catch (err) {

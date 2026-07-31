@@ -133,6 +133,110 @@ button.danger {
   margin-top: 0;
 }
 
+.page-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.page-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.category-tree {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  position: sticky;
+  top: 12px;
+}
+
+.category-tree-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.category-tree-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.category-tree-item:hover {
+  background: var(--bg);
+}
+
+.category-tree-item.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.category-tree-count {
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.category-tree-item.active .category-tree-count {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.category-tree-manage {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.category-tree-manage input {
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.category-tree-manage button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+@media (max-width: 700px) {
+  .page-layout {
+    flex-direction: column;
+  }
+
+  .category-tree {
+    flex: 1 1 auto;
+    width: 100%;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .category-tree-manage {
+    width: 100%;
+  }
+}
+
 .tile {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -203,6 +307,30 @@ button.danger {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 8px;
+}
+
+.tile-category-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.icon-btn:hover {
+  background: var(--bg);
 }
 
 .tile-checked-at {

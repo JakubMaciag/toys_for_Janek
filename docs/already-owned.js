@@ -1,5 +1,11 @@
 import { FIREBASE_CONFIG } from './config.js';
-import { signInAnonymously, ensureFreshSession, listOwned, getGuestPasswordHash } from './firebase-rest.js';
+import {
+  signInAnonymously,
+  ensureFreshSession,
+  listOwned,
+  listCategories,
+  getGuestPasswordHash,
+} from './firebase-rest.js';
 
 // Same keys as guest.js on purpose — sharing localStorage means a guest who
 // already unlocked index.html doesn't have to enter the password again here,
@@ -14,8 +20,17 @@ const content = document.getElementById('content');
 const ownedTilesEl = document.getElementById('owned-tiles');
 const ownedEmptyState = document.getElementById('owned-empty-state');
 const searchInput = document.getElementById('search-input');
+const categoryTreeItemsEl = document.getElementById('category-tree-items');
 
 let currentItems = [];
+let currentCategories = [];
+let selectedCategoryId = ''; // '' = all, '__none__' = uncategorized, else a category id
+
+function categoryName(categoryId) {
+  if (!categoryId) return null;
+  const cat = currentCategories.find((c) => c.id === categoryId);
+  return cat ? cat.name : null;
+}
 
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
@@ -82,18 +97,78 @@ function buildOwnedTile(item) {
     body.appendChild(comment);
   }
 
+  const catName = categoryName(item.categoryId);
+  if (catName) {
+    const catBadge = document.createElement('div');
+    catBadge.className = 'tile-category-badge';
+    catBadge.textContent = `🏷️ ${catName}`;
+    body.appendChild(catBadge);
+  }
+
   tile.appendChild(body);
   return tile;
+}
+
+function buildCategoryButton(id, name, count, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'category-tree-item' + (isActive ? ' active' : '');
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  const countSpan = document.createElement('span');
+  countSpan.className = 'category-tree-count';
+  countSpan.textContent = count;
+  btn.append(nameSpan, countSpan);
+  btn.addEventListener('click', () => {
+    selectedCategoryId = id;
+    renderOwned();
+  });
+  return btn;
+}
+
+function renderCategoryTree(baseItems) {
+  const counts = {};
+  let uncategorized = 0;
+  baseItems.forEach((t) => {
+    if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] || 0) + 1;
+    else uncategorized += 1;
+  });
+
+  categoryTreeItemsEl.innerHTML = '';
+  categoryTreeItemsEl.appendChild(buildCategoryButton('', 'Wszystkie', baseItems.length, selectedCategoryId === ''));
+
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      categoryTreeItemsEl.appendChild(
+        buildCategoryButton(cat.id, cat.name, counts[cat.id] || 0, selectedCategoryId === cat.id)
+      );
+    });
+
+  if (uncategorized > 0) {
+    categoryTreeItemsEl.appendChild(
+      buildCategoryButton('__none__', 'Bez kategorii', uncategorized, selectedCategoryId === '__none__')
+    );
+  }
 }
 
 function renderOwned() {
   ownedTilesEl.innerHTML = '';
   ownedEmptyState.hidden = true;
   const search = searchInput.value.trim().toLowerCase();
-  const toShow = currentItems.filter((i) => !search || (i.name || '').toLowerCase().includes(search));
+  const preCategory = currentItems.filter((i) => !search || (i.name || '').toLowerCase().includes(search));
+
+  renderCategoryTree(preCategory);
+
+  const toShow = preCategory.filter((i) => {
+    if (selectedCategoryId === '__none__') return !i.categoryId;
+    if (selectedCategoryId) return i.categoryId === selectedCategoryId;
+    return true;
+  });
+
   if (toShow.length === 0) {
     ownedEmptyState.hidden = false;
-    ownedEmptyState.textContent = currentItems.length === 0 ? 'Jeszcze nic tu nie ma.' : 'Nic nie pasuje do wyszukiwania.';
+    ownedEmptyState.textContent = currentItems.length === 0 ? 'Jeszcze nic tu nie ma.' : 'Nic nie pasuje do wyszukiwania/filtrów.';
     return;
   }
   toShow
@@ -104,8 +179,12 @@ function renderOwned() {
 async function loadAndRenderOwned() {
   try {
     const session = await getGuestSession();
-    const items = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
+    const [items, categories] = await Promise.all([
+      listOwned(FIREBASE_CONFIG.projectId, session.idToken),
+      listCategories(FIREBASE_CONFIG.projectId, session.idToken),
+    ]);
     currentItems = items.filter((i) => i.visibleToGuests === true);
+    currentCategories = categories;
     renderOwned();
   } catch (err) {
     ownedEmptyState.hidden = false;

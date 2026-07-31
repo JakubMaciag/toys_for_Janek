@@ -9,16 +9,17 @@ import {
   deleteToy,
   createOwned,
   setGuestPasswordHash,
-  getCurrentAgeCategory,
-  setCurrentAgeCategory,
+  listCategories,
+  createCategory,
+  renameCategory,
+  deleteCategory,
 } from './firebase-rest.js';
 
-// Ordered youngest → oldest. A toy's position here (relative to the
-// admin-configured "current" threshold) decides whether it shows up under
-// "Można kupować teraz" or "Na przyszłość" on both this page and the guest
-// wishlist. Toys with no category are always treated as "now" (no
-// restriction) — the split only pushes things into "future" when the admin
-// explicitly flags them as being for an older age than Janek is now.
+// Purely informational now — shown as a badge, no longer drives any
+// automatic "now vs future" grouping (that used to be computed from this
+// list + an admin-set threshold, but that took the decision out of the
+// admin's hands; see availableNow instead, which the admin sets directly
+// per toy).
 const AGE_CATEGORIES = [
   '0-6 miesięcy',
   '6-12 miesięcy',
@@ -70,37 +71,42 @@ const settingsForm = document.getElementById('settings-form');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 const settingsStatus = document.getElementById('settings-status');
 const settingsGuestPassword = document.getElementById('settings-guest-password');
-const ageSettingsForm = document.getElementById('age-settings-form');
-const ageSettingsStatus = document.getElementById('age-settings-status');
-const settingsAgeCategorySelect = document.getElementById('settings-age-category');
 const addAgeCategorySelect = document.getElementById('add-age-category');
+const addCategorySelect = document.getElementById('add-category');
+const addAvailableNowCheckbox = document.getElementById('add-available-now');
 const filterSelect = document.getElementById('filter-select');
 const searchInput = document.getElementById('search-input');
+const categoryTreeItemsEl = document.getElementById('category-tree-items');
+const categoryAddForm = document.getElementById('category-add-form');
+const categoryAddNameInput = document.getElementById('category-add-name');
+const categoryStatus = document.getElementById('category-status');
 
 AGE_CATEGORIES.forEach((cat) => {
-  const opt1 = document.createElement('option');
-  opt1.value = cat;
-  opt1.textContent = cat;
-  addAgeCategorySelect.appendChild(opt1);
-
-  const opt2 = document.createElement('option');
-  opt2.value = cat;
-  opt2.textContent = cat;
-  settingsAgeCategorySelect.appendChild(opt2);
+  const opt = document.createElement('option');
+  opt.value = cat;
+  opt.textContent = cat;
+  addAgeCategorySelect.appendChild(opt);
 });
 
 let currentToys = [];
-let currentAgeCategory = null;
+let currentCategories = [];
+let selectedCategoryId = ''; // '' = all, '__none__' = uncategorized, else a category id
 
-function categoryIndex(cat) {
-  return cat ? AGE_CATEGORIES.indexOf(cat) : -1;
+function categoryName(categoryId) {
+  if (!categoryId) return null;
+  const cat = currentCategories.find((c) => c.id === categoryId);
+  return cat ? cat.name : null;
 }
 
-function isFutureToy(toy) {
-  const idx = categoryIndex(toy.ageCategory);
-  if (idx === -1) return false;
-  const thresholdIndex = currentAgeCategory ? AGE_CATEGORIES.indexOf(currentAgeCategory) : AGE_CATEGORIES.length - 1;
-  return idx > thresholdIndex;
+function populateCategorySelects() {
+  const sorted = [...currentCategories].sort((a, b) => a.name.localeCompare(b.name));
+  addCategorySelect.innerHTML = '<option value="">Bez kategorii</option>';
+  sorted.forEach((cat) => {
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.name;
+    addCategorySelect.appendChild(opt);
+  });
 }
 
 function getStoredSession() {
@@ -244,6 +250,14 @@ function buildViewTile(toy, refresh) {
     body.appendChild(comment);
   }
 
+  const catName = categoryName(toy.categoryId);
+  if (catName) {
+    const catBadge = document.createElement('div');
+    catBadge.className = 'tile-category-badge';
+    catBadge.textContent = `🏷️ ${catName}`;
+    body.appendChild(catBadge);
+  }
+
   if (toy.ageCategory) {
     const ageBadge = document.createElement('div');
     ageBadge.className = 'tile-age-badge';
@@ -295,6 +309,26 @@ function buildViewTile(toy, refresh) {
     }
   });
 
+  const isAvailable = toy.availableNow !== false;
+  const toggleAvailableBtn = document.createElement('button');
+  toggleAvailableBtn.type = 'button';
+  toggleAvailableBtn.className = 'secondary';
+  toggleAvailableBtn.textContent = isAvailable ? 'Oznacz: na przyszłość' : 'Oznacz: można kupić teraz';
+  toggleAvailableBtn.addEventListener('click', async () => {
+    toggleAvailableBtn.disabled = true;
+    status.textContent = 'Zapisywanie…';
+    try {
+      const session = await getValidSession();
+      await updateToyFields(FIREBASE_CONFIG.projectId, session.idToken, toy.id, {
+        availableNow: !isAvailable,
+      });
+      refresh();
+    } catch (err) {
+      status.textContent = 'Błąd: ' + err.message;
+      toggleAvailableBtn.disabled = false;
+    }
+  });
+
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
   deleteBtn.className = 'danger';
@@ -330,6 +364,7 @@ function buildViewTile(toy, refresh) {
         imageUrl: toy.imageUrl ?? null,
         link: toy.link ?? null,
         adminComment: toy.adminComment ?? null,
+        categoryId: toy.categoryId ?? null,
         addedAt: new Date(),
       });
       await deleteToy(FIREBASE_CONFIG.projectId, session.idToken, toy.id);
@@ -340,7 +375,7 @@ function buildViewTile(toy, refresh) {
     }
   });
 
-  actions.append(editBtn, toggleReservedBtn, moveToOwnedBtn, deleteBtn);
+  actions.append(editBtn, toggleReservedBtn, toggleAvailableBtn, moveToOwnedBtn, deleteBtn);
   body.appendChild(actions);
   body.appendChild(status);
   tile.appendChild(body);
@@ -395,10 +430,10 @@ function buildEditTile(toy, refresh) {
   commentInput.value = toy.adminComment || '';
 
   const ageCategorySelect = document.createElement('select');
-  const blankOption = document.createElement('option');
-  blankOption.value = '';
-  blankOption.textContent = 'Brak (dla każdego wieku)';
-  ageCategorySelect.appendChild(blankOption);
+  const blankAgeOption = document.createElement('option');
+  blankAgeOption.value = '';
+  blankAgeOption.textContent = 'Brak (dla każdego wieku)';
+  ageCategorySelect.appendChild(blankAgeOption);
   AGE_CATEGORIES.forEach((cat) => {
     const opt = document.createElement('option');
     opt.value = cat;
@@ -406,6 +441,28 @@ function buildEditTile(toy, refresh) {
     ageCategorySelect.appendChild(opt);
   });
   ageCategorySelect.value = toy.ageCategory || '';
+
+  const categorySelect = document.createElement('select');
+  const blankCatOption = document.createElement('option');
+  blankCatOption.value = '';
+  blankCatOption.textContent = 'Bez kategorii';
+  categorySelect.appendChild(blankCatOption);
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.name;
+      categorySelect.appendChild(opt);
+    });
+  categorySelect.value = toy.categoryId || '';
+
+  const availableNowInput = document.createElement('input');
+  availableNowInput.type = 'checkbox';
+  availableNowInput.checked = toy.availableNow !== false;
+  const availableNowLabel = labeledInput('', availableNowInput);
+  availableNowLabel.className = 'checkbox-label';
+  availableNowLabel.append('Można kupować teraz');
 
   form.append(
     labeledInput('Nazwa', nameInput),
@@ -415,7 +472,9 @@ function buildEditTile(toy, refresh) {
     labeledInput('Zdjęcie (URL)', imageInput),
     labeledInput('Link do sklepu', linkInput),
     labeledInput('Komentarz administratora (opcjonalnie)', commentInput),
-    labeledInput('Kategoria wiekowa (opcjonalnie)', ageCategorySelect)
+    labeledInput('Kategoria wiekowa (opcjonalnie)', ageCategorySelect),
+    labeledInput('Kategoria produktu (opcjonalnie)', categorySelect),
+    availableNowLabel
   );
 
   const actions = document.createElement('div');
@@ -452,6 +511,8 @@ function buildEditTile(toy, refresh) {
         link: linkInput.value.trim(),
         adminComment: commentInput.value.trim() || null,
         ageCategory: ageCategorySelect.value || null,
+        categoryId: categorySelect.value || null,
+        availableNow: availableNowInput.checked,
       });
       refresh();
     } catch (err) {
@@ -478,21 +539,134 @@ function appendGroup(title, items) {
   });
 }
 
-function renderToys() {
-  tilesEl.innerHTML = '';
+function preCategoryFilter() {
   const filter = filterSelect.value;
   const search = searchInput.value.trim().toLowerCase();
-  const toShow = currentToys.filter((t) => {
+  return currentToys.filter((t) => {
     if (filter === 'unreserved' && t.reserved) return false;
     if (filter === 'reserved' && !t.reserved) return false;
     if (search && !(t.name || '').toLowerCase().includes(search)) return false;
     return true;
   });
+}
+
+function buildCategoryButton(id, name, count, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'category-tree-item' + (isActive ? ' active' : '');
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  const countSpan = document.createElement('span');
+  countSpan.className = 'category-tree-count';
+  countSpan.textContent = count;
+  btn.append(nameSpan, countSpan);
+  btn.addEventListener('click', () => {
+    selectedCategoryId = id;
+    renderToys();
+  });
+  return btn;
+}
+
+function buildCategoryRow(cat, count, isActive) {
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.alignItems = 'center';
+  row.style.gap = '2px';
+
+  const btn = buildCategoryButton(cat.id, cat.name, count, isActive);
+  btn.style.flex = '1';
+  row.appendChild(btn);
+
+  const renameBtn = document.createElement('button');
+  renameBtn.type = 'button';
+  renameBtn.textContent = '✏️';
+  renameBtn.title = 'Zmień nazwę kategorii';
+  renameBtn.className = 'icon-btn';
+  renameBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const newName = prompt('Nowa nazwa kategorii:', cat.name);
+    if (!newName || !newName.trim() || newName.trim() === cat.name) return;
+    categoryStatus.textContent = 'Zapisywanie…';
+    try {
+      const session = await getValidSession();
+      await renameCategory(FIREBASE_CONFIG.projectId, session.idToken, cat.id, newName.trim());
+      currentCategories = await listCategories(FIREBASE_CONFIG.projectId, session.idToken);
+      populateCategorySelects();
+      categoryStatus.textContent = '';
+      renderToys();
+    } catch (err) {
+      categoryStatus.textContent = 'Błąd: ' + err.message;
+    }
+  });
+  row.appendChild(renameBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.textContent = '🗑️';
+  deleteBtn.title = 'Usuń kategorię';
+  deleteBtn.className = 'icon-btn';
+  deleteBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!confirm(`Usunąć kategorię "${cat.name}"? Zabawki w niej staną się "bez kategorii".`)) return;
+    categoryStatus.textContent = 'Usuwanie…';
+    try {
+      const session = await getValidSession();
+      await deleteCategory(FIREBASE_CONFIG.projectId, session.idToken, cat.id);
+      if (selectedCategoryId === cat.id) selectedCategoryId = '';
+      currentCategories = await listCategories(FIREBASE_CONFIG.projectId, session.idToken);
+      populateCategorySelects();
+      categoryStatus.textContent = '';
+      renderToys();
+    } catch (err) {
+      categoryStatus.textContent = 'Błąd: ' + err.message;
+    }
+  });
+  row.appendChild(deleteBtn);
+
+  return row;
+}
+
+function renderCategoryTree(baseItems) {
+  const counts = {};
+  let uncategorized = 0;
+  baseItems.forEach((t) => {
+    if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] || 0) + 1;
+    else uncategorized += 1;
+  });
+
+  categoryTreeItemsEl.innerHTML = '';
+  categoryTreeItemsEl.appendChild(buildCategoryButton('', 'Wszystkie', baseItems.length, selectedCategoryId === ''));
+
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      categoryTreeItemsEl.appendChild(buildCategoryRow(cat, counts[cat.id] || 0, selectedCategoryId === cat.id));
+    });
+
+  if (uncategorized > 0) {
+    categoryTreeItemsEl.appendChild(
+      buildCategoryButton('__none__', 'Bez kategorii', uncategorized, selectedCategoryId === '__none__')
+    );
+  }
+}
+
+function renderToys() {
+  tilesEl.innerHTML = '';
+
+  const preCategory = preCategoryFilter();
+  renderCategoryTree(preCategory);
+
+  const toShow = preCategory.filter((t) => {
+    if (selectedCategoryId === '__none__') return !t.categoryId;
+    if (selectedCategoryId) return t.categoryId === selectedCategoryId;
+    return true;
+  });
+
   loadStatus.textContent = `${toShow.length} / ${currentToys.length} zabawek`;
 
   const sorted = toShow.sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
-  const nowItems = sorted.filter((t) => !isFutureToy(t));
-  const futureItems = sorted.filter((t) => isFutureToy(t));
+  const nowItems = sorted.filter((t) => t.availableNow !== false);
+  const futureItems = sorted.filter((t) => t.availableNow === false);
 
   appendGroup('✅ Można kupować teraz', nowItems);
   appendGroup('🔜 Na przyszłość', futureItems);
@@ -503,12 +677,13 @@ async function loadAndRenderToys() {
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
-    const [toys, ageCategory] = await Promise.all([
+    const [toys, categories] = await Promise.all([
       listToys(FIREBASE_CONFIG.projectId, session.idToken),
-      getCurrentAgeCategory(FIREBASE_CONFIG.projectId),
+      listCategories(FIREBASE_CONFIG.projectId, session.idToken),
     ]);
     currentToys = toys;
-    currentAgeCategory = ageCategory;
+    currentCategories = categories;
+    populateCategorySelects();
     renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
@@ -570,6 +745,8 @@ addForm.addEventListener('submit', async (e) => {
     link,
     adminComment: document.getElementById('add-comment').value.trim() || null,
     ageCategory: addAgeCategorySelect.value || null,
+    categoryId: addCategorySelect.value || null,
+    availableNow: addAvailableNowCheckbox.checked,
     addedAt: new Date(),
     reserved: false,
     reservedByName: null,
@@ -595,18 +772,32 @@ addForm.addEventListener('submit', async (e) => {
 filterSelect.addEventListener('change', renderToys);
 searchInput.addEventListener('input', renderToys);
 
+categoryAddForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = categoryAddNameInput.value.trim();
+  if (!name) return;
+  categoryStatus.textContent = 'Dodawanie…';
+  try {
+    const session = await getValidSession();
+    await createCategory(FIREBASE_CONFIG.projectId, session.idToken, name);
+    currentCategories = await listCategories(FIREBASE_CONFIG.projectId, session.idToken);
+    populateCategorySelects();
+    categoryAddForm.reset();
+    categoryStatus.textContent = '';
+    renderToys();
+  } catch (err) {
+    categoryStatus.textContent = 'Błąd: ' + err.message;
+  }
+});
+
 toggleSettingsBtn.addEventListener('click', () => {
   settingsPanel.hidden = !settingsPanel.hidden;
-  if (!settingsPanel.hidden) {
-    settingsAgeCategorySelect.value = currentAgeCategory || AGE_CATEGORIES[AGE_CATEGORIES.length - 1];
-  }
 });
 
 cancelSettingsBtn.addEventListener('click', () => {
   settingsForm.reset();
   settingsPanel.hidden = true;
   settingsStatus.textContent = '';
-  ageSettingsStatus.textContent = '';
 });
 
 settingsForm.addEventListener('submit', async (e) => {
@@ -622,20 +813,6 @@ settingsForm.addEventListener('submit', async (e) => {
     settingsForm.reset();
   } catch (err) {
     settingsStatus.textContent = 'Błąd: ' + err.message;
-  }
-});
-
-ageSettingsForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  ageSettingsStatus.textContent = 'Zapisywanie…';
-  try {
-    const session = await getValidSession();
-    await setCurrentAgeCategory(FIREBASE_CONFIG.projectId, session.idToken, settingsAgeCategorySelect.value);
-    currentAgeCategory = settingsAgeCategorySelect.value;
-    ageSettingsStatus.textContent = 'Próg wieku zapisany.';
-    renderToys();
-  } catch (err) {
-    ageSettingsStatus.textContent = 'Błąd: ' + err.message;
   }
 });
 

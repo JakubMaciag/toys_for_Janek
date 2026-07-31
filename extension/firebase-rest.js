@@ -168,6 +168,16 @@ export async function deleteToy(projectId, idToken, toyId) {
   await parseJsonOrThrow(res);
 }
 
+// Read-only here on purpose — category management (create/rename/delete)
+// stays in admin.html; the extension only lets you assign an existing one.
+export async function listCategories(projectId, idToken) {
+  const res = await fetch(`${firestoreBase(projectId)}/categories?pageSize=300`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  const data = await parseJsonOrThrow(res);
+  return (data.documents || []).map(docToToy);
+}
+
 // "Already owned/bought" record — separate collection from `toys`, no
 // reservation concept, admin-only per firestore.rules.
 export async function listOwned(projectId, idToken) {

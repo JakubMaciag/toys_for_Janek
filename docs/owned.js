@@ -7,6 +7,8 @@ import {
   createOwned,
   updateOwnedFields,
   deleteOwned,
+  listCategories,
+  createCategory,
 } from './firebase-rest.js';
 
 // Same key as admin.js on purpose — an admin already logged into admin.html
@@ -26,8 +28,32 @@ const addForm = document.getElementById('add-form');
 const cancelAddBtn = document.getElementById('cancel-add-btn');
 const addError = document.getElementById('add-error');
 const searchInput = document.getElementById('search-input');
+const addCategorySelect = document.getElementById('add-category');
+const categoryTreeItemsEl = document.getElementById('category-tree-items');
+const categoryAddForm = document.getElementById('category-add-form');
+const categoryAddNameInput = document.getElementById('category-add-name');
+const categoryStatus = document.getElementById('category-status');
 
 let currentItems = [];
+let currentCategories = [];
+let selectedCategoryId = ''; // '' = all, '__none__' = uncategorized, else a category id
+
+function categoryName(categoryId) {
+  if (!categoryId) return null;
+  const cat = currentCategories.find((c) => c.id === categoryId);
+  return cat ? cat.name : null;
+}
+
+function populateCategorySelects() {
+  const sorted = [...currentCategories].sort((a, b) => a.name.localeCompare(b.name));
+  addCategorySelect.innerHTML = '<option value="">Bez kategorii</option>';
+  sorted.forEach((cat) => {
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.name;
+    addCategorySelect.appendChild(opt);
+  });
+}
 
 function getStoredSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -137,6 +163,14 @@ function buildViewTile(item, refresh) {
     body.appendChild(comment);
   }
 
+  const catName = categoryName(item.categoryId);
+  if (catName) {
+    const catBadge = document.createElement('div');
+    catBadge.className = 'tile-category-badge';
+    catBadge.textContent = `🏷️ ${catName}`;
+    body.appendChild(catBadge);
+  }
+
   const status = document.createElement('p');
   status.className = 'status';
 
@@ -242,6 +276,21 @@ function buildEditTile(item, refresh) {
   commentInput.maxLength = 300;
   commentInput.value = item.adminComment || '';
 
+  const categorySelect = document.createElement('select');
+  const blankCatOption = document.createElement('option');
+  blankCatOption.value = '';
+  blankCatOption.textContent = 'Bez kategorii';
+  categorySelect.appendChild(blankCatOption);
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.name;
+      categorySelect.appendChild(opt);
+    });
+  categorySelect.value = item.categoryId || '';
+
   const visibleInput = document.createElement('input');
   visibleInput.type = 'checkbox';
   visibleInput.checked = !!item.visibleToGuests;
@@ -256,6 +305,7 @@ function buildEditTile(item, refresh) {
     labeledInput('Zdjęcie (URL)', imageInput),
     labeledInput('Link (opcjonalnie)', linkInput),
     labeledInput('Komentarz (opcjonalnie)', commentInput),
+    labeledInput('Kategoria produktu (opcjonalnie)', categorySelect),
     visibleLabel
   );
 
@@ -292,6 +342,7 @@ function buildEditTile(item, refresh) {
         imageUrl: imageInput.value.trim() || null,
         link: link || null,
         adminComment: commentInput.value.trim() || null,
+        categoryId: categorySelect.value || null,
         visibleToGuests: visibleInput.checked,
       });
       refresh();
@@ -318,11 +369,63 @@ function formatTotals(items) {
   return 'Suma: ' + entries.map(([currency, sum]) => `${sum.toFixed(2)} ${currency}`).join(' + ');
 }
 
+function buildCategoryButton(id, name, count, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'category-tree-item' + (isActive ? ' active' : '');
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  const countSpan = document.createElement('span');
+  countSpan.className = 'category-tree-count';
+  countSpan.textContent = count;
+  btn.append(nameSpan, countSpan);
+  btn.addEventListener('click', () => {
+    selectedCategoryId = id;
+    renderItems();
+  });
+  return btn;
+}
+
+function renderCategoryTree(baseItems) {
+  const counts = {};
+  let uncategorized = 0;
+  baseItems.forEach((t) => {
+    if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] || 0) + 1;
+    else uncategorized += 1;
+  });
+
+  categoryTreeItemsEl.innerHTML = '';
+  categoryTreeItemsEl.appendChild(buildCategoryButton('', 'Wszystkie', baseItems.length, selectedCategoryId === ''));
+
+  [...currentCategories]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((cat) => {
+      categoryTreeItemsEl.appendChild(
+        buildCategoryButton(cat.id, cat.name, counts[cat.id] || 0, selectedCategoryId === cat.id)
+      );
+    });
+
+  if (uncategorized > 0) {
+    categoryTreeItemsEl.appendChild(
+      buildCategoryButton('__none__', 'Bez kategorii', uncategorized, selectedCategoryId === '__none__')
+    );
+  }
+}
+
 function renderItems() {
   const scrollY = window.scrollY;
   tilesEl.innerHTML = '';
   const search = searchInput.value.trim().toLowerCase();
-  const toShow = currentItems.filter((item) => !search || (item.name || '').toLowerCase().includes(search));
+  const preCategory = currentItems.filter((item) => !search || (item.name || '').toLowerCase().includes(search));
+
+  renderCategoryTree(preCategory);
+
+  const toShow = preCategory.filter((item) => {
+    if (selectedCategoryId === '__none__') return !item.categoryId;
+    if (selectedCategoryId) return item.categoryId === selectedCategoryId;
+    return true;
+  });
+
   loadStatus.textContent = `${toShow.length} / ${currentItems.length} pozycji`;
   totalStatus.textContent = formatTotals(toShow);
   toShow
@@ -344,7 +447,13 @@ async function loadAndRenderItems() {
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
-    currentItems = await listOwned(FIREBASE_CONFIG.projectId, session.idToken);
+    const [items, categories] = await Promise.all([
+      listOwned(FIREBASE_CONFIG.projectId, session.idToken),
+      listCategories(FIREBASE_CONFIG.projectId, session.idToken),
+    ]);
+    currentItems = items;
+    currentCategories = categories;
+    populateCategorySelects();
     renderItems();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
@@ -354,6 +463,24 @@ async function loadAndRenderItems() {
 }
 
 searchInput.addEventListener('input', renderItems);
+
+categoryAddForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = categoryAddNameInput.value.trim();
+  if (!name) return;
+  categoryStatus.textContent = 'Dodawanie…';
+  try {
+    const session = await getValidSession();
+    await createCategory(FIREBASE_CONFIG.projectId, session.idToken, name);
+    currentCategories = await listCategories(FIREBASE_CONFIG.projectId, session.idToken);
+    populateCategorySelects();
+    categoryAddForm.reset();
+    categoryStatus.textContent = '';
+    renderItems();
+  } catch (err) {
+    categoryStatus.textContent = 'Błąd: ' + err.message;
+  }
+});
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -406,6 +533,7 @@ addForm.addEventListener('submit', async (e) => {
     imageUrl: document.getElementById('add-image').value.trim() || null,
     link: link || null,
     adminComment: document.getElementById('add-comment').value.trim() || null,
+    categoryId: addCategorySelect.value || null,
     visibleToGuests: document.getElementById('add-visible-to-guests').checked,
     addedAt: new Date(),
   };

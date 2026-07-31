@@ -35,32 +35,42 @@
         (widoczne przy każdej zabawce) i mogą się różnić od aktualnej ceny w sklepie. Przed zakupem
         warto sprawdzić cenę bezpośrednio pod linkiem "Zobacz w sklepie".
       </p>
-      <div class="list-toolbar">
-        <label>
-          Szukaj
-          <input type="search" id="search-input" placeholder="Nazwa zabawki…" />
-        </label>
-        <label>
-          Sortuj
-          <select id="sort-select">
-            <option value="price-asc" selected>Cena: od najniższej</option>
-            <option value="price-desc">Cena: od najwyższej</option>
-            <option value="added-desc">Najpierw najnowsze</option>
-            <option value="added-asc">Najpierw najstarsze</option>
-          </select>
-        </label>
-        <label>
-          Cena od
-          <input type="number" id="price-min" min="0" step="0.01" placeholder="0" />
-        </label>
-        <label>
-          Cena do
-          <input type="number" id="price-max" min="0" step="0.01" placeholder="np. 200" />
-        </label>
+
+      <div class="page-layout">
+        <nav id="category-tree" class="category-tree">
+          <p class="category-tree-heading">Kategorie</p>
+          <div id="category-tree-items"></div>
+        </nav>
+
+        <div class="page-main">
+          <div class="list-toolbar">
+            <label>
+              Szukaj
+              <input type="search" id="search-input" placeholder="Nazwa zabawki…" />
+            </label>
+            <label>
+              Sortuj
+              <select id="sort-select">
+                <option value="price-asc" selected>Cena: od najniższej</option>
+                <option value="price-desc">Cena: od najwyższej</option>
+                <option value="added-desc">Najpierw najnowsze</option>
+                <option value="added-asc">Najpierw najstarsze</option>
+              </select>
+            </label>
+            <label>
+              Cena od
+              <input type="number" id="price-min" min="0" step="0.01" placeholder="0" />
+            </label>
+            <label>
+              Cena do
+              <input type="number" id="price-max" min="0" step="0.01" placeholder="np. 200" />
+            </label>
+          </div>
+          <p id="load-status" class="status"></p>
+          <div id="tiles" class="tile-grid"></div>
+          <p id="empty-state" class="empty-state" hidden>Wszystkie zabawki mają już swoich kupujących! 🎉</p>
+        </div>
       </div>
-      <p id="load-status" class="status"></p>
-      <div id="tiles" class="tile-grid"></div>
-      <p id="empty-state" class="empty-state" hidden>Wszystkie zabawki mają już swoich kupujących! 🎉</p>
     </main>
 
     <script type="module" src="guest.js"></script>

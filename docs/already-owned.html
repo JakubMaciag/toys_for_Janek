@@ -26,14 +26,24 @@
       <p class="status">
         Żeby uniknąć duplikatów — to lista rzeczy, które Janek już dostał albo ma (bez cen).
       </p>
-      <div class="list-toolbar">
-        <label>
-          Szukaj
-          <input type="search" id="search-input" placeholder="Nazwa…" />
-        </label>
+
+      <div class="page-layout">
+        <nav id="category-tree" class="category-tree">
+          <p class="category-tree-heading">Kategorie</p>
+          <div id="category-tree-items"></div>
+        </nav>
+
+        <div class="page-main">
+          <div class="list-toolbar">
+            <label>
+              Szukaj
+              <input type="search" id="search-input" placeholder="Nazwa…" />
+            </label>
+          </div>
+          <p id="owned-empty-state" class="empty-state" hidden>Jeszcze nic tu nie ma.</p>
+          <div id="owned-tiles" class="tile-grid"></div>
+        </div>
       </div>
-      <p id="owned-empty-state" class="empty-state" hidden>Jeszcze nic tu nie ma.</p>
-      <div id="owned-tiles" class="tile-grid"></div>
     </main>
 
     <script type="module" src="already-owned.js"></script>

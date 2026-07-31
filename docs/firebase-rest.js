@@ -236,26 +236,43 @@ export async function setGuestPasswordHash(projectId, idToken, sha256Hex) {
   await parseJsonOrThrow(res);
 }
 
-// Which age category toys are currently appropriate for Janek (doc
-// appConfig/settings) — public read (guest page needs it to split the
-// wishlist into "buy now"/"buy later"), admin-only write.
-const SETTINGS_PATH = 'appConfig/settings';
-
-export async function getCurrentAgeCategory(projectId) {
-  const res = await fetch(`${firestoreBase(projectId)}/${SETTINGS_PATH}`);
-  if (res.status === 404) return null;
+// Freeform product categories (e.g. "Samochody", "Książki") shared by both
+// `toys` and `ownedToys` — admin creates/renames/deletes them; toys just
+// store a categoryId referencing one of these docs (see firestore.rules).
+export async function listCategories(projectId, idToken) {
+  const res = await fetch(`${firestoreBase(projectId)}/categories?pageSize=300`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   const data = await parseJsonOrThrow(res);
-  return fromFirestoreValue((data.fields || {}).currentAgeCategory);
+  return (data.documents || []).map(docToToy);
 }
 
-export async function setCurrentAgeCategory(projectId, idToken, category) {
+export async function createCategory(projectId, idToken, name) {
+  const res = await fetch(`${firestoreBase(projectId)}/categories`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { name: { stringValue: name } } }),
+  });
+  const data = await parseJsonOrThrow(res);
+  return docToToy(data);
+}
+
+export async function renameCategory(projectId, idToken, categoryId, name) {
   const res = await fetch(
-    `${firestoreBase(projectId)}/${SETTINGS_PATH}?updateMask.fieldPaths=currentAgeCategory`,
+    `${firestoreBase(projectId)}/categories/${categoryId}?updateMask.fieldPaths=name`,
     {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: { currentAgeCategory: { stringValue: category } } }),
+      body: JSON.stringify({ fields: { name: { stringValue: name } } }),
     }
   );
+  await parseJsonOrThrow(res);
+}
+
+export async function deleteCategory(projectId, idToken, categoryId) {
+  const res = await fetch(`${firestoreBase(projectId)}/categories/${categoryId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   await parseJsonOrThrow(res);
 }
