@@ -5,7 +5,21 @@ import {
   listToys,
   updateToyFields,
   getGuestPasswordHash,
+  getCurrentAgeCategory,
 } from './firebase-rest.js';
+
+// Same order/list as admin.js — kept in sync manually (no shared module
+// system between pages in this project).
+const AGE_CATEGORIES = [
+  '0-6 miesięcy',
+  '6-12 miesięcy',
+  '1-2 lata',
+  '2-3 lata',
+  '3-4 lata',
+  '4-5 lat',
+  '5-6 lat',
+  '6+ lat',
+];
 
 const GATE_OK_KEY = 'toysForJanek.gateOk';
 const SESSION_KEY = 'toysForJanek.guestSession';
@@ -23,6 +37,18 @@ const priceMaxInput = document.getElementById('price-max');
 const searchInput = document.getElementById('search-input');
 
 let currentToys = [];
+let currentAgeCategory = null;
+
+function categoryIndex(cat) {
+  return cat ? AGE_CATEGORIES.indexOf(cat) : -1;
+}
+
+function isFutureToy(toy) {
+  const idx = categoryIndex(toy.ageCategory);
+  if (idx === -1) return false;
+  const thresholdIndex = currentAgeCategory ? AGE_CATEGORIES.indexOf(currentAgeCategory) : AGE_CATEGORIES.length - 1;
+  return idx > thresholdIndex;
+}
 
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
@@ -143,6 +169,13 @@ function buildTile(toy, onReserved) {
     body.appendChild(comment);
   }
 
+  if (toy.ageCategory) {
+    const ageBadge = document.createElement('div');
+    ageBadge.className = 'tile-age-badge';
+    ageBadge.textContent = `👶 ${toy.ageCategory}`;
+    body.appendChild(ageBadge);
+  }
+
   const nameForm = document.createElement('div');
   nameForm.className = 'reserve-name-form';
 
@@ -188,6 +221,15 @@ function buildTile(toy, onReserved) {
   return tile;
 }
 
+function appendGroup(title, items) {
+  if (items.length === 0) return;
+  const heading = document.createElement('h3');
+  heading.className = 'tile-grid-heading';
+  heading.textContent = title;
+  tilesEl.appendChild(heading);
+  items.forEach((toy) => tilesEl.appendChild(buildTile(toy, loadAndRenderToys)));
+}
+
 function renderToys() {
   tilesEl.innerHTML = '';
   emptyState.hidden = true;
@@ -227,9 +269,11 @@ function renderToys() {
     return;
   }
 
-  toShow.forEach((toy) => {
-    tilesEl.appendChild(buildTile(toy, loadAndRenderToys));
-  });
+  const nowItems = toShow.filter((t) => !isFutureToy(t));
+  const futureItems = toShow.filter((t) => isFutureToy(t));
+
+  appendGroup('✅ Można kupować teraz', nowItems);
+  appendGroup('🔜 Na przyszłość (Janek jeszcze za mały)', futureItems);
 }
 
 async function loadAndRenderToys() {
@@ -238,8 +282,12 @@ async function loadAndRenderToys() {
   emptyState.hidden = true;
   try {
     const session = await getGuestSession();
-    const toys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
+    const [toys, ageCategory] = await Promise.all([
+      listToys(FIREBASE_CONFIG.projectId, session.idToken),
+      getCurrentAgeCategory(FIREBASE_CONFIG.projectId),
+    ]);
     currentToys = toys.filter((t) => !t.reserved);
+    currentAgeCategory = ageCategory;
     loadStatus.textContent = '';
     renderToys();
   } catch (err) {

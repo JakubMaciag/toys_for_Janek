@@ -44,7 +44,8 @@ label {
   font-weight: 600;
 }
 
-input {
+input,
+select {
   font-size: 14px;
   padding: 6px 8px;
   border: 1px solid #ccc;

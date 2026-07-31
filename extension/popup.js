@@ -43,6 +43,25 @@ const duplicateWarning = document.getElementById('duplicate-warning');
 const duplicateWarningText = document.getElementById('duplicate-warning-text');
 const duplicateConfirmBtn = document.getElementById('duplicate-confirm-btn');
 const duplicateCancelBtn = document.getElementById('duplicate-cancel-btn');
+const ageCategorySelect = document.getElementById('toy-age-category');
+
+// Same order/list as docs/admin.js — kept in sync manually.
+const AGE_CATEGORIES = [
+  '0-6 miesięcy',
+  '6-12 miesięcy',
+  '1-2 lata',
+  '2-3 lata',
+  '3-4 lata',
+  '4-5 lat',
+  '5-6 lat',
+  '6+ lat',
+];
+AGE_CATEGORIES.forEach((cat) => {
+  const opt = document.createElement('option');
+  opt.value = cat;
+  opt.textContent = cat;
+  ageCategorySelect.appendChild(opt);
+});
 
 alreadyOwnedCheckbox.addEventListener('change', () => {
   submitBtn.textContent = alreadyOwnedCheckbox.checked ? 'Dodaj do już posiadanych' : 'Dodaj do listy';
@@ -135,6 +154,7 @@ scanBtn.addEventListener('click', async () => {
   openSiteBtn.hidden = true;
   duplicateWarning.hidden = true;
   alreadyOwnedCheckbox.checked = false;
+  ageCategorySelect.value = '';
   submitBtn.textContent = 'Dodaj do listy';
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -224,6 +244,7 @@ toyForm.addEventListener('submit', async (e) => {
         imageUrl: document.getElementById('toy-image').value.trim() || null,
         link,
         adminComment: document.getElementById('toy-comment').value.trim() || null,
+        ageCategory: ageCategorySelect.value || null,
         addedAt: new Date(),
         reserved: false,
         reservedByName: null,

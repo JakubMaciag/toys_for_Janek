@@ -57,17 +57,31 @@
           <p id="load-status" class="status"></p>
         </div>
 
-        <form id="settings-form" class="admin-form" hidden>
-          <label>
-            Nowe hasło dla gości
-            <input type="password" id="settings-guest-password" placeholder="np. mikolaj2026" minlength="4" />
-          </label>
-          <div class="form-actions">
-            <button type="submit">Zapisz hasło</button>
-            <button type="button" id="cancel-settings-btn" class="secondary">Anuluj</button>
-          </div>
-          <p id="settings-status" class="status"></p>
-        </form>
+        <div id="settings-panel" hidden>
+          <form id="settings-form" class="admin-form">
+            <label>
+              Nowe hasło dla gości
+              <input type="password" id="settings-guest-password" placeholder="np. mikolaj2026" minlength="4" />
+            </label>
+            <div class="form-actions">
+              <button type="submit">Zapisz hasło</button>
+            </div>
+            <p id="settings-status" class="status"></p>
+          </form>
+
+          <form id="age-settings-form" class="admin-form">
+            <label>
+              Obecny próg wiekowy Janka (zabawki z wyższą kategorią trafiają do "Na przyszłość")
+              <select id="settings-age-category"></select>
+            </label>
+            <div class="form-actions">
+              <button type="submit">Zapisz próg wieku</button>
+            </div>
+            <p id="age-settings-status" class="status"></p>
+          </form>
+
+          <button type="button" id="cancel-settings-btn" class="secondary">Zamknij ustawienia</button>
+        </div>
 
         <form id="add-form" class="admin-form" hidden>
           <label>Nazwa<input type="text" id="add-name" required maxlength="200" /></label>
@@ -77,6 +91,12 @@
           <label>Zdjęcie (URL)<input type="url" id="add-image" maxlength="2000" /></label>
           <label>Link do sklepu<input type="url" id="add-link" required maxlength="2000" /></label>
           <label>Komentarz administratora (opcjonalnie)<input type="text" id="add-comment" maxlength="300" /></label>
+          <label>
+            Kategoria wiekowa (opcjonalnie)
+            <select id="add-age-category">
+              <option value="">Brak (dla każdego wieku)</option>
+            </select>
+          </label>
           <div class="form-actions">
             <button type="submit">Zapisz nową zabawkę</button>
             <button type="button" id="cancel-add-btn" class="secondary">Anuluj</button>

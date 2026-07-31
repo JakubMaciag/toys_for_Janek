@@ -235,3 +235,27 @@ export async function setGuestPasswordHash(projectId, idToken, sha256Hex) {
   );
   await parseJsonOrThrow(res);
 }
+
+// Which age category toys are currently appropriate for Janek (doc
+// appConfig/settings) — public read (guest page needs it to split the
+// wishlist into "buy now"/"buy later"), admin-only write.
+const SETTINGS_PATH = 'appConfig/settings';
+
+export async function getCurrentAgeCategory(projectId) {
+  const res = await fetch(`${firestoreBase(projectId)}/${SETTINGS_PATH}`);
+  if (res.status === 404) return null;
+  const data = await parseJsonOrThrow(res);
+  return fromFirestoreValue((data.fields || {}).currentAgeCategory);
+}
+
+export async function setCurrentAgeCategory(projectId, idToken, category) {
+  const res = await fetch(
+    `${firestoreBase(projectId)}/${SETTINGS_PATH}?updateMask.fieldPaths=currentAgeCategory`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { currentAgeCategory: { stringValue: category } } }),
+    }
+  );
+  await parseJsonOrThrow(res);
+}

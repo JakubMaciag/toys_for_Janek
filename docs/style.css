@@ -120,6 +120,19 @@ button.danger {
   margin-top: 16px;
 }
 
+.tile-grid-heading {
+  grid-column: 1 / -1;
+  font-size: 16px;
+  margin: 8px 0 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text);
+}
+
+.tile-grid-heading:first-child {
+  margin-top: 0;
+}
+
 .tile {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -179,6 +192,17 @@ button.danger {
   border-left: 3px solid var(--accent);
   padding: 6px 8px;
   border-radius: 4px;
+}
+
+.tile-age-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .tile-checked-at {

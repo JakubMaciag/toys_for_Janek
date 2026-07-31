@@ -8,9 +8,16 @@ service cloud.firestore {
     match /toys/{toyId} {
       function hasOnlyToyFields(data) {
         return data.keys().hasOnly([
-          'name', 'price', 'originalPrice', 'currency', 'link', 'imageUrl', 'adminComment',
+          'name', 'price', 'originalPrice', 'currency', 'link', 'imageUrl', 'adminComment', 'ageCategory',
           'addedAt', 'reserved', 'reservedByName', 'reservedAt'
         ]);
+      }
+
+      function isValidAgeCategory(cat) {
+        return cat in [
+          '0-6 miesięcy', '6-12 miesięcy', '1-2 lata', '2-3 lata',
+          '3-4 lata', '4-5 lat', '5-6 lat', '6+ lat'
+        ];
       }
 
       function isValidToyShape(data) {
@@ -22,6 +29,7 @@ service cloud.firestore {
           && data.currency is string && data.currency.size() <= 10
           && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000 && data.imageUrl.matches('^https?://.+')))
           && (!('adminComment' in data) || data.adminComment == null || (data.adminComment is string && data.adminComment.size() <= 300))
+          && (!('ageCategory' in data) || data.ageCategory == null || (data.ageCategory is string && isValidAgeCategory(data.ageCategory)))
           && data.addedAt is timestamp
           && data.reserved is bool
           && (data.reservedByName == null || (data.reservedByName is string && data.reservedByName.size() <= 60))
@@ -81,20 +89,28 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Holds the guest-page password hash (doc id "guestGate", field
-    // "passwordSha256") so it lives in Firestore instead of the git repo.
-    // Publicly readable on purpose: the guest page must be able to check it
-    // BEFORE the visitor has signed in (even anonymously). This is still
-    // only a cosmetic deterrent (see SETUP.md) — moving it out of the repo
-    // stops it from sitting in git history / public source browsing and
-    // lets the admin rotate it without a commit+push, but anyone querying
-    // this Firestore REST endpoint directly can already read the hash.
+    // Holds two admin-configured, publicly-readable settings docs:
+    //   - "guestGate" { passwordSha256 } — the guest-page password hash, so
+    //     it lives in Firestore instead of the git repo (cosmetic deterrent
+    //     only, see SETUP.md — moving it here stops it sitting in git
+    //     history and lets the admin rotate it without a commit+push).
+    //   - "settings" { currentAgeCategory } — which age-category toys are
+    //     currently appropriate for Janek, used to split the guest wishlist
+    //     into "buy now" vs "buy later" sections.
+    // Both public-readable on purpose (guest page needs them before/without
+    // a real login), admin-only writable.
     match /appConfig/{doc} {
       allow read: if true;
-      allow write: if isAdmin()
-        && request.resource.data.keys().hasOnly(['passwordSha256'])
-        && request.resource.data.passwordSha256 is string
-        && request.resource.data.passwordSha256.size() == 64;
+      allow write: if isAdmin() && (
+        (doc == 'guestGate'
+          && request.resource.data.keys().hasOnly(['passwordSha256'])
+          && request.resource.data.passwordSha256 is string
+          && request.resource.data.passwordSha256.size() == 64)
+        ||
+        (doc == 'settings'
+          && request.resource.data.keys().hasOnly(['currentAgeCategory'])
+          && request.resource.data.currentAgeCategory is string)
+      );
     }
 
     match /{document=**} {

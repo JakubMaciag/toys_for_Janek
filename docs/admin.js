@@ -9,7 +9,26 @@ import {
   deleteToy,
   createOwned,
   setGuestPasswordHash,
+  getCurrentAgeCategory,
+  setCurrentAgeCategory,
 } from './firebase-rest.js';
+
+// Ordered youngest → oldest. A toy's position here (relative to the
+// admin-configured "current" threshold) decides whether it shows up under
+// "Można kupować teraz" or "Na przyszłość" on both this page and the guest
+// wishlist. Toys with no category are always treated as "now" (no
+// restriction) — the split only pushes things into "future" when the admin
+// explicitly flags them as being for an older age than Janek is now.
+const AGE_CATEGORIES = [
+  '0-6 miesięcy',
+  '6-12 miesięcy',
+  '1-2 lata',
+  '2-3 lata',
+  '3-4 lata',
+  '4-5 lat',
+  '5-6 lat',
+  '6+ lat',
+];
 
 // Same-name (case/whitespace-insensitive) or same-link match against an
 // already-fetched list — used before creating a new entry to catch
@@ -46,14 +65,43 @@ const addForm = document.getElementById('add-form');
 const cancelAddBtn = document.getElementById('cancel-add-btn');
 const addError = document.getElementById('add-error');
 const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
 const settingsForm = document.getElementById('settings-form');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 const settingsStatus = document.getElementById('settings-status');
 const settingsGuestPassword = document.getElementById('settings-guest-password');
+const ageSettingsForm = document.getElementById('age-settings-form');
+const ageSettingsStatus = document.getElementById('age-settings-status');
+const settingsAgeCategorySelect = document.getElementById('settings-age-category');
+const addAgeCategorySelect = document.getElementById('add-age-category');
 const filterSelect = document.getElementById('filter-select');
 const searchInput = document.getElementById('search-input');
 
+AGE_CATEGORIES.forEach((cat) => {
+  const opt1 = document.createElement('option');
+  opt1.value = cat;
+  opt1.textContent = cat;
+  addAgeCategorySelect.appendChild(opt1);
+
+  const opt2 = document.createElement('option');
+  opt2.value = cat;
+  opt2.textContent = cat;
+  settingsAgeCategorySelect.appendChild(opt2);
+});
+
 let currentToys = [];
+let currentAgeCategory = null;
+
+function categoryIndex(cat) {
+  return cat ? AGE_CATEGORIES.indexOf(cat) : -1;
+}
+
+function isFutureToy(toy) {
+  const idx = categoryIndex(toy.ageCategory);
+  if (idx === -1) return false;
+  const thresholdIndex = currentAgeCategory ? AGE_CATEGORIES.indexOf(currentAgeCategory) : AGE_CATEGORIES.length - 1;
+  return idx > thresholdIndex;
+}
 
 function getStoredSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -182,6 +230,13 @@ function buildViewTile(toy, refresh) {
     comment.className = 'tile-comment';
     comment.textContent = toy.adminComment;
     body.appendChild(comment);
+  }
+
+  if (toy.ageCategory) {
+    const ageBadge = document.createElement('div');
+    ageBadge.className = 'tile-age-badge';
+    ageBadge.textContent = `👶 ${toy.ageCategory}`;
+    body.appendChild(ageBadge);
   }
 
   if (toy.reserved) {
@@ -327,6 +382,19 @@ function buildEditTile(toy, refresh) {
   commentInput.maxLength = 300;
   commentInput.value = toy.adminComment || '';
 
+  const ageCategorySelect = document.createElement('select');
+  const blankOption = document.createElement('option');
+  blankOption.value = '';
+  blankOption.textContent = 'Brak (dla każdego wieku)';
+  ageCategorySelect.appendChild(blankOption);
+  AGE_CATEGORIES.forEach((cat) => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    ageCategorySelect.appendChild(opt);
+  });
+  ageCategorySelect.value = toy.ageCategory || '';
+
   form.append(
     labeledInput('Nazwa', nameInput),
     labeledInput('Cena', priceInput),
@@ -334,7 +402,8 @@ function buildEditTile(toy, refresh) {
     labeledInput('Waluta', currencyInput),
     labeledInput('Zdjęcie (URL)', imageInput),
     labeledInput('Link do sklepu', linkInput),
-    labeledInput('Komentarz administratora (opcjonalnie)', commentInput)
+    labeledInput('Komentarz administratora (opcjonalnie)', commentInput),
+    labeledInput('Kategoria wiekowa (opcjonalnie)', ageCategorySelect)
   );
 
   const actions = document.createElement('div');
@@ -370,6 +439,7 @@ function buildEditTile(toy, refresh) {
         imageUrl: imageInput.value.trim() || null,
         link: linkInput.value.trim(),
         adminComment: commentInput.value.trim() || null,
+        ageCategory: ageCategorySelect.value || null,
       });
       refresh();
     } catch (err) {
@@ -379,6 +449,15 @@ function buildEditTile(toy, refresh) {
 
   tile.append(form, status);
   return tile;
+}
+
+function appendGroup(title, items) {
+  if (items.length === 0) return;
+  const heading = document.createElement('h3');
+  heading.className = 'tile-grid-heading';
+  heading.textContent = `${title} (${items.length})`;
+  tilesEl.appendChild(heading);
+  items.forEach((toy) => tilesEl.appendChild(buildViewTile(toy, loadAndRenderToys)));
 }
 
 function renderToys() {
@@ -392,9 +471,13 @@ function renderToys() {
     return true;
   });
   loadStatus.textContent = `${toShow.length} / ${currentToys.length} zabawek`;
-  toShow
-    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-    .forEach((toy) => tilesEl.appendChild(buildViewTile(toy, loadAndRenderToys)));
+
+  const sorted = toShow.sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  const nowItems = sorted.filter((t) => !isFutureToy(t));
+  const futureItems = sorted.filter((t) => isFutureToy(t));
+
+  appendGroup('✅ Można kupować teraz', nowItems);
+  appendGroup('🔜 Na przyszłość', futureItems);
 }
 
 async function loadAndRenderToys() {
@@ -402,7 +485,12 @@ async function loadAndRenderToys() {
   tilesEl.innerHTML = '';
   try {
     const session = await getValidSession();
-    currentToys = await listToys(FIREBASE_CONFIG.projectId, session.idToken);
+    const [toys, ageCategory] = await Promise.all([
+      listToys(FIREBASE_CONFIG.projectId, session.idToken),
+      getCurrentAgeCategory(FIREBASE_CONFIG.projectId),
+    ]);
+    currentToys = toys;
+    currentAgeCategory = ageCategory;
     renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
@@ -463,6 +551,7 @@ addForm.addEventListener('submit', async (e) => {
     imageUrl: document.getElementById('add-image').value.trim() || null,
     link,
     adminComment: document.getElementById('add-comment').value.trim() || null,
+    ageCategory: addAgeCategorySelect.value || null,
     addedAt: new Date(),
     reserved: false,
     reservedByName: null,
@@ -489,13 +578,17 @@ filterSelect.addEventListener('change', renderToys);
 searchInput.addEventListener('input', renderToys);
 
 toggleSettingsBtn.addEventListener('click', () => {
-  settingsForm.hidden = !settingsForm.hidden;
+  settingsPanel.hidden = !settingsPanel.hidden;
+  if (!settingsPanel.hidden) {
+    settingsAgeCategorySelect.value = currentAgeCategory || AGE_CATEGORIES[AGE_CATEGORIES.length - 1];
+  }
 });
 
 cancelSettingsBtn.addEventListener('click', () => {
   settingsForm.reset();
-  settingsForm.hidden = true;
+  settingsPanel.hidden = true;
   settingsStatus.textContent = '';
+  ageSettingsStatus.textContent = '';
 });
 
 settingsForm.addEventListener('submit', async (e) => {
@@ -511,6 +604,20 @@ settingsForm.addEventListener('submit', async (e) => {
     settingsForm.reset();
   } catch (err) {
     settingsStatus.textContent = 'Błąd: ' + err.message;
+  }
+});
+
+ageSettingsForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  ageSettingsStatus.textContent = 'Zapisywanie…';
+  try {
+    const session = await getValidSession();
+    await setCurrentAgeCategory(FIREBASE_CONFIG.projectId, session.idToken, settingsAgeCategorySelect.value);
+    currentAgeCategory = settingsAgeCategorySelect.value;
+    ageSettingsStatus.textContent = 'Próg wieku zapisany.';
+    renderToys();
+  } catch (err) {
+    ageSettingsStatus.textContent = 'Błąd: ' + err.message;
   }
 });
 
