@@ -153,6 +153,7 @@ function renderCategoryTree(baseItems) {
 }
 
 function renderOwned() {
+  const scrollY = window.scrollY;
   ownedTilesEl.innerHTML = '';
   ownedEmptyState.hidden = true;
   const search = searchInput.value.trim().toLowerCase();
@@ -169,14 +170,17 @@ function renderOwned() {
   if (toShow.length === 0) {
     ownedEmptyState.hidden = false;
     ownedEmptyState.textContent = currentItems.length === 0 ? 'Jeszcze nic tu nie ma.' : 'Nic nie pasuje do wyszukiwania/filtrów.';
+    window.scrollTo(0, scrollY);
     return;
   }
   toShow
     .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
     .forEach((item) => ownedTilesEl.appendChild(buildOwnedTile(item)));
+  window.scrollTo(0, scrollY);
 }
 
 async function loadAndRenderOwned() {
+  const scrollY = window.scrollY;
   try {
     const session = await getGuestSession();
     const [items, categories] = await Promise.all([
@@ -189,6 +193,8 @@ async function loadAndRenderOwned() {
   } catch (err) {
     ownedEmptyState.hidden = false;
     ownedEmptyState.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  } finally {
+    window.scrollTo(0, scrollY);
   }
 }
 

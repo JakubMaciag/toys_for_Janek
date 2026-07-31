@@ -284,6 +284,7 @@ function renderCategoryTree(baseItems) {
 }
 
 function renderToys() {
+  const scrollY = window.scrollY;
   tilesEl.innerHTML = '';
   emptyState.hidden = true;
 
@@ -322,11 +323,13 @@ function renderToys() {
   if (currentToys.length === 0) {
     emptyState.hidden = false;
     emptyState.textContent = 'Wszystkie zabawki mają już swoich kupujących! 🎉';
+    window.scrollTo(0, scrollY);
     return;
   }
   if (toShow.length === 0) {
     emptyState.hidden = false;
     emptyState.textContent = 'Żadna zabawka nie pasuje do wyszukiwania/filtrów.';
+    window.scrollTo(0, scrollY);
     return;
   }
 
@@ -335,9 +338,11 @@ function renderToys() {
 
   appendGroup('✅ Można kupować teraz', nowItems);
   appendGroup('🔜 Na przyszłość (Janek jeszcze za mały)', futureItems);
+  window.scrollTo(0, scrollY);
 }
 
 async function loadAndRenderToys() {
+  const scrollY = window.scrollY;
   loadStatus.textContent = 'Wczytywanie listy…';
   tilesEl.innerHTML = '';
   emptyState.hidden = true;
@@ -353,6 +358,8 @@ async function loadAndRenderToys() {
     renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  } finally {
+    window.scrollTo(0, scrollY);
   }
 }
 

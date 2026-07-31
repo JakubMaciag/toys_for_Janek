@@ -651,6 +651,7 @@ function renderCategoryTree(baseItems) {
 }
 
 function renderToys() {
+  const scrollY = window.scrollY;
   tilesEl.innerHTML = '';
 
   const preCategory = preCategoryFilter();
@@ -670,9 +671,11 @@ function renderToys() {
 
   appendGroup('✅ Można kupować teraz', nowItems);
   appendGroup('🔜 Na przyszłość', futureItems);
+  window.scrollTo(0, scrollY);
 }
 
 async function loadAndRenderToys() {
+  const scrollY = window.scrollY;
   loadStatus.textContent = 'Wczytywanie…';
   tilesEl.innerHTML = '';
   try {
@@ -687,6 +690,8 @@ async function loadAndRenderToys() {
     renderToys();
   } catch (err) {
     loadStatus.textContent = 'Nie udało się wczytać listy: ' + err.message;
+  } finally {
+    window.scrollTo(0, scrollY);
   }
 }
 
